@@ -29,3 +29,14 @@ EXTERN_DLL_EXPORT void toggleUi() {
 	DivaImGui::MainModule::showUi = !DivaImGui::MainModule::showUi;
 	return;
 }
+
+EXTERN_DLL_EXPORT bool getUiState() {
+	return DivaImGui::MainModule::showUi;
+}
+
+EXTERN_DLL_EXPORT void initialize() {
+	printf("DivaImGui : Initializing hooks...\n");
+	DivaImGui::MainModule::glcomp.Initialize();
+	printf("DivaImGui : Hooks initialized\n");
+	return;
+}
