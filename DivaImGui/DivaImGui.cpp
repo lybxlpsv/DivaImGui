@@ -36,7 +36,7 @@ EXTERN_DLL_EXPORT bool getUiState() {
 
 EXTERN_DLL_EXPORT void initialize() {
 	printf("DivaImGui : Initializing hooks...\n");
-	DivaImGui::MainModule::glcomp.Initialize();
+	DivaImGui::MainModule::initializeglcomp();
 	printf("DivaImGui : Hooks initialized\n");
 	return;
 }
