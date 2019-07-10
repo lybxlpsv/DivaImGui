@@ -191,10 +191,10 @@
     <ClInclude Include="Utilities\Stopwatch.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\Downloads\Detours-master\Detours-master\src\disolx64.cpp" />
     <ClCompile Include="..\Depedencies\detours\creatwth.cpp" />
     <ClCompile Include="..\Depedencies\detours\detours.cpp" />
     <ClCompile Include="..\Depedencies\detours\disasm.cpp" />
+    <ClCompile Include="..\Depedencies\detours\disolx64.cpp" />
     <ClCompile Include="..\Depedencies\detours\image.cpp" />
     <ClCompile Include="..\Depedencies\detours\modules.cpp" />
     <ClCompile Include="..\Depedencies\imgui\imgui.cpp" />

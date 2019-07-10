@@ -152,7 +152,7 @@
     <ClCompile Include="..\Depedencies\detours\disasm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\Downloads\Detours-master\Detours-master\src\disolx64.cpp">
+    <ClCompile Include="..\Depedencies\detours\disolx64.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
