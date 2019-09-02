@@ -30,9 +30,17 @@ namespace DivaImGui
 
 	// Function prototype
 	typedef BOOL(__stdcall* GLSwapBuffers)(HDC);
+	typedef int(__stdcall* PDGetFramerate)(void);
+	typedef void(__stdcall* PDSetFramerate)(int);
+	//typedef std::chrono::nanoseconds*(__stdcall* PDGetFrameratePtr)(void);
 	// Function pointer
 	GLSwapBuffers fnGLSwapBuffers;
+	PDGetFramerate getFrameratePD;
+	PDSetFramerate setFrameratePD;
+	//PDGetFrameratePtr getFrameratePtrPD;
 
+	bool usePDFrameLimit = false;
+	//std::chrono::nanoseconds* PDFrameLimit;
 	constexpr uint64_t FB_WIDTH_ADDRESS = 0x00000001411ABCA8;
 	constexpr uint64_t FB_HEIGHT_ADDRESS = 0x00000001411ABCAC;
 	constexpr uint64_t FB1_WIDTH_ADDRESS = 0x00000001411AD5F8;
@@ -72,6 +80,8 @@ namespace DivaImGui
 	static bool temporalAA = 0;
 	static bool temporalAA2 = 0;
 	static bool copydepth = false;
+
+	static bool pdframerate = false;
 
 	static bool vsync = true;
 	static bool lastvsync = false;
@@ -321,19 +331,38 @@ namespace DivaImGui
 			wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
 		}
 
+		getFrameratePD = (PDGetFramerate)GetProcAddress(GetModuleHandle(L"Render.dva"), "getFramerateLimit");
+		bool WarnOldVersion = true;
+		if (getFrameratePD != NULL)
+		{
+			WarnOldVersion = false;
+			setFrameratePD = (PDSetFramerate)GetProcAddress(GetModuleHandle(L"Render.dva"), "setFramerateLimit");
+			//getFrameratePtrPD = (PDGetFrameratePtr)GetProcAddress(GetModuleHandle(L"Render.dva"), "getFrameratePtr");
+			if (getFrameratePD() > 0)
+			{
+				usePDFrameLimit = true;
+				//PDFrameLimit = getFrameratePtrPD();
+				printf("[DivaImGui] Using render.dva FPS Limit.\n");
+			}
+		}
+		if (WarnOldVersion)
+			printf("[DivaImGui] Warning: Possibly old version of PD-Loader.\n");
+		if (!usePDFrameLimit)
+			printf("[DivaImGui] Using internal FPS Limit.\n");
+		
 		DWORD oldProtect;
 		VirtualProtect((void*)AET_FRAME_DURATION_ADDRESS, sizeof(float), PAGE_EXECUTE_READWRITE, &oldProtect);
 
 		defaultAetFrameDuration = *(float*)AET_FRAME_DURATION_ADDRESS;
 
 		glewInit();
-		fprintf(stdout, "GLComponent: Using GLEW %s\n", glewGetString(GLEW_VERSION));
+		fprintf(stdout, "[DivaImGui] Using GLEW %s\n", glewGetString(GLEW_VERSION));
 
 		DivaImGui::FileSystem::ConfigFile resolutionConfig(MainModule::GetModuleDirectory(), RESOLUTION_CONFIG_FILE_NAME.c_str());
 		bool success = resolutionConfig.OpenRead();
 		if (!success)
 		{
-			printf("GLComponent: Unable to parse %s\n", RESOLUTION_CONFIG_FILE_NAME.c_str());
+			printf("[DivaImGui] Unable to parse %s\n", RESOLUTION_CONFIG_FILE_NAME.c_str());
 		}
 
 		if (success) {
@@ -1141,6 +1170,18 @@ namespace DivaImGui
 		if (frameratemanager)
 			setFramerate();
 
+		if (usePDFrameLimit)
+		{
+			if (DivaImGui::MainModule::fpsLimitSet != DivaImGui::MainModule::fpsLimit)
+			{
+				if (DivaImGui::MainModule::fpsLimitSet < 20)
+					setFrameratePD(99999);
+				else
+					setFrameratePD(DivaImGui::MainModule::fpsLimitSet);
+				DivaImGui::MainModule::fpsLimit = DivaImGui::MainModule::fpsLimitSet;
+			}
+		}
+		else {
 		if (DivaImGui::MainModule::fpsLimitSet != DivaImGui::MainModule::fpsLimit)
 		{
 			mBeginFrame = system_clock::now();
@@ -1165,6 +1206,9 @@ namespace DivaImGui
 			std::this_thread::sleep_until(mEndFrame);
 		mBeginFrame = mEndFrame;
 		mEndFrame = mBeginFrame + invFpsLimit;
+
+		
+		}
 
 		if (vsync)
 		{

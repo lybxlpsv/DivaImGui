@@ -7,8 +7,16 @@
 
 #define EXTERN_DLL_EXPORT extern "C" __declspec(dllexport)
 
+EXTERN_DLL_EXPORT LPCWSTR GetPluginName() {
+	return L"DivaImGui";
+}
+
+EXTERN_DLL_EXPORT LPCWSTR GetPluginDescription() {
+	return L"DivaImGui Plugin by lybxlpsv\nDivaImGui adds an In-Game Interface.";
+}
+
 EXTERN_DLL_EXPORT int getVersion() {
-	return 1;
+	return 2;
 }
 
 EXTERN_DLL_EXPORT int getFrameRate() {
@@ -32,11 +40,4 @@ EXTERN_DLL_EXPORT void toggleUi() {
 
 EXTERN_DLL_EXPORT bool getUiState() {
 	return DivaImGui::MainModule::showUi;
-}
-
-EXTERN_DLL_EXPORT void initialize() {
-	printf("DivaImGui : Initializing hooks...\n");
-	DivaImGui::MainModule::initializeglcomp();
-	printf("DivaImGui : Hooks initialized\n");
-	return;
 }
