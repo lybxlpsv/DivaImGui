@@ -32,7 +32,7 @@ namespace DivaImGui
 		bool success = resolutionConfig.OpenRead();
 		if (!success)
 		{
-			printf("GLComponent: Unable to parse %s\n", RESOLUTION_CONFIG_FILE_NAME.c_str());
+			printf("[DivaImGui] Unable to parse %s\n", RESOLUTION_CONFIG_FILE_NAME.c_str());
 		}
 
 		if (success) {
@@ -45,16 +45,16 @@ namespace DivaImGui
 
 				if (*value == v101)
 				{
-					printf("GLComponent: AFT v1.01\n");
+					printf("[DivaImGui] AFT v1.01\n");
 					glcomp101.Initialize();
 				}
 				else {
-					printf("GLComponent: AFT v7.10\n");
+					printf("[DivaImGui] AFT v7.10\n");
 					glcomp.Initialize();
 				}
 			}
 			else {
-				printf("GLComponent: AFT v7.10\n");
+				printf("[DivaImGui] AFT v7.10\n");
 				glcomp.Initialize();
 			}
 		}

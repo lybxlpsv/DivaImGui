@@ -8,9 +8,9 @@
 
 void AttachImGui()
 {
-	printf("DivaImGui : Initializing hooks...\n");
+	printf("[DivaImGui] Initializing hooks...\n");
 	DivaImGui::MainModule::initializeglcomp();
-	printf("DivaImGui : Hooks initialized\n");
+	printf("[DivaImGui] Hooks initialized\n");
 }
 
 BOOL APIENTRY DllMain( HMODULE hModule,
