@@ -1154,7 +1154,7 @@ namespace DivaImGui
 					ImGui::InputFloat("AET_FRAME_DURATION", (float*)AET_FRAME_DURATION_ADDRESS);
 					ImGui::InputFloat("PV_FRAME_RATE_ADDRESS", (float*)PV_FRAME_RATE_ADDRESS);
 					ImGui::InputFloat("FRAME_SPEED_ADDRESS", (float*)FRAME_SPEED_ADDRESS);
-					ImGui::SliderFloat("FRAME_SPEED_ADDRESS", (float*)FRAME_SPEED_ADDRESS, 0, 1, "%.2f");
+					ImGui::SliderFloat("FRAME_SPEED_ADDRESS_", (float*)FRAME_SPEED_ADDRESS, 0, 1, "%.2f");
 					ImGui::InputFloat("pvStructPvFrameRate", (float*)(0x0000000140CDD978 + 0x2BF98));
 					ImGui::InputFloat("pvStructPvFrameSpeed", (float*)(0x0000000140CDD978 + 0x2BF9C));
 				}
