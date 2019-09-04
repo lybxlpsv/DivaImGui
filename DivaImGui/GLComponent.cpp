@@ -28,6 +28,12 @@ namespace DivaImGui
 	using namespace std::chrono;
 	using dsec = duration<double>;
 
+	typedef chrono::time_point<chrono::steady_clock> steady_clock;
+	typedef chrono::high_resolution_clock high_resolution_clock;
+
+	steady_clock start;
+	steady_clock end;
+
 	// Function prototype
 	typedef BOOL(__stdcall* GLSwapBuffers)(HDC);
 	typedef int(__stdcall* PDGetFramerate)(void);
@@ -223,8 +229,9 @@ namespace DivaImGui
 	void setFramerateDbg()
 	{
 		float frameRate = frametime;
-
-		*(float*)AET_FRAME_DURATION_ADDRESS = 1.0f / ImGui::GetIO().Framerate;
+		float gameFrameRate = 1000.0f / ((float)(chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0f));
+		//printf("%3.2f\n", );
+		*(float*)AET_FRAME_DURATION_ADDRESS = 1.0f / gameFrameRate;
 		*(float*)PV_FRAME_RATE_ADDRESS = frameRate;
 
 		bool inGame = *(GameState*)CURRENT_GAME_STATE_ADDRESS == GS_GAME;
@@ -232,7 +239,7 @@ namespace DivaImGui
 		{
 			// During the GAME state the frame rate will be handled by the PvFrameRate instead
 			if (dbgAutoFramerate)
-			framespeed = frametime / ImGui::GetIO().Framerate;
+			framespeed = frametime / gameFrameRate;
 			
 			float defaultFrameRate = 60.0f;
 
@@ -425,6 +432,10 @@ namespace DivaImGui
 				if (*value == "2")
 					frameratemanagerdbg = true;
 			}
+			if (resolutionConfig.TryGetValue("motifrm", &value))
+			{
+				frametime = std::stoi(*value);
+			}
 			if (resolutionConfig.TryGetValue("toonShaderWorkaround", &value))
 			{
 				if (*value == trueString)
@@ -604,7 +615,7 @@ namespace DivaImGui
 		ImGui_ImplWin32_Init(MainModule::DivaWindowHandle);
 		ImGui_ImplOpenGL2_Init();
 		ImGui::StyleColorsDark();
-
+		start = high_resolution_clock::now();
 		initialize = true;
 	}
 
@@ -1183,9 +1194,6 @@ namespace DivaImGui
 			ImGui::End();
 		}
 
-		if (frameratemanagerdbg)
-			setFramerateDbg();
-
 		if (showAbout)
 		{
 			ImGuiWindowFlags window_flags = 0;
@@ -1275,9 +1283,12 @@ namespace DivaImGui
 			std::this_thread::sleep_until(mEndFrame);
 		mBeginFrame = mEndFrame;
 		mEndFrame = mBeginFrame + invFpsLimit;
-
-		
 		}
+
+		end = high_resolution_clock::now();
+
+		if (frameratemanagerdbg)
+			setFramerateDbg();
 
 		if (vsync)
 		{
@@ -1302,7 +1313,7 @@ namespace DivaImGui
 
 		//if (dxgidraw)
 		//System->Run();
-
+		start = high_resolution_clock::now();
 		return fnGLSwapBuffers(hDc);
 	}
 
