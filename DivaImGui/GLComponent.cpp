@@ -240,7 +240,11 @@ namespace DivaImGui
 			// During the GAME state the frame rate will be handled by the PvFrameRate instead
 			if (dbgAutoFramerate)
 			framespeed = frametime / gameFrameRate;
-			
+			if (framespeed > 10000)
+			{
+				framespeed = 10000;
+				printf("[DivaImGui] Warning over 10000!\n");
+			}
 			float defaultFrameRate = 60.0f;
 
 			// This PV struct creates a copy of the PvFrameRate & PvFrameSpeed during the loading screen
