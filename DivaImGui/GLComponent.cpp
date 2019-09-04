@@ -89,7 +89,11 @@ namespace DivaImGui
 	static bool copymodules = false;
 
 	static bool frameratemanager = false;
-
+	static bool frameratemanagerdbg = false;
+	static float framespeed = 1.0f;
+	static float frametime = 60.0f;
+	static int swapinterval = 1;
+	static bool force_fpslimit_vsync = false;
 	const std::string RESOLUTION_CONFIG_FILE_NAME = "graphics.ini";
 
 	static float res_scale[1000];
@@ -203,6 +207,7 @@ namespace DivaImGui
 	ChangeLogGameState* changeSubState = (ChangeLogGameState*)CHANGE_SUB_MODE_ADDRESS;
 
 	static float defaultAetFrameDuration;
+	static bool dbgAutoFramerate = true;
 
 	GLComponent::GLComponent()
 	{
@@ -213,6 +218,40 @@ namespace DivaImGui
 	GLComponent::~GLComponent()
 	{
 
+	}
+	
+	void setFramerateDbg()
+	{
+		float frameRate = frametime;
+
+		*(float*)AET_FRAME_DURATION_ADDRESS = 1.0f / ImGui::GetIO().Framerate;
+		*(float*)PV_FRAME_RATE_ADDRESS = frameRate;
+
+		bool inGame = *(GameState*)CURRENT_GAME_STATE_ADDRESS == GS_GAME;
+		if (inGame)
+		{
+			// During the GAME state the frame rate will be handled by the PvFrameRate instead
+			if (dbgAutoFramerate)
+			framespeed = frametime / ImGui::GetIO().Framerate;
+			
+			float defaultFrameRate = 60.0f;
+
+			// This PV struct creates a copy of the PvFrameRate & PvFrameSpeed during the loading screen
+			// so we'll make sure to keep updating it as well.
+			// Each new motion also creates its own copy of these values but keeping track of the active motions is annoying
+			// and they usually change multiple times per PV anyway so this should suffice for now
+			float* pvStructPvFrameRate = (float*)(0x0000000140CDD978 + 0x2BF98);
+			float* pvStructPvFrameSpeed = (float*)(0x0000000140CDD978 + 0x2BF9C);
+
+			*pvStructPvFrameRate = *(float*)PV_FRAME_RATE_ADDRESS;
+			*pvStructPvFrameSpeed = (defaultFrameRate / *(float*)PV_FRAME_RATE_ADDRESS);
+			
+			*(float*)FRAME_SPEED_ADDRESS = framespeed;
+		}
+		else
+		{
+			*(float*)FRAME_SPEED_ADDRESS = *(float*)AET_FRAME_DURATION_ADDRESS / defaultAetFrameDuration;
+		}
 	}
 
 	void setFramerate()
@@ -332,10 +371,8 @@ namespace DivaImGui
 		}
 
 		getFrameratePD = (PDGetFramerate)GetProcAddress(GetModuleHandle(L"Render.dva"), "getFramerateLimit");
-		bool WarnOldVersion = true;
 		if (getFrameratePD != NULL)
 		{
-			WarnOldVersion = false;
 			setFrameratePD = (PDSetFramerate)GetProcAddress(GetModuleHandle(L"Render.dva"), "setFramerateLimit");
 			//getFrameratePtrPD = (PDGetFrameratePtr)GetProcAddress(GetModuleHandle(L"Render.dva"), "getFrameratePtr");
 			if (getFrameratePD() > 0)
@@ -344,9 +381,7 @@ namespace DivaImGui
 				//PDFrameLimit = getFrameratePtrPD();
 				printf("[DivaImGui] Using render.dva FPS Limit.\n");
 			}
-		}
-		if (WarnOldVersion)
-			printf("[DivaImGui] Warning: Possibly old version of PD-Loader.\n");
+		} else printf("[DivaImGui] Warning: Possibly old version of PD-Loader.\n");
 		if (!usePDFrameLimit)
 			printf("[DivaImGui] Using internal FPS Limit.\n");
 		
@@ -386,6 +421,9 @@ namespace DivaImGui
 			{
 				if (*value == trueString)
 					frameratemanager = true;
+
+				if (*value == "2")
+					frameratemanagerdbg = true;
 			}
 			if (resolutionConfig.TryGetValue("toonShaderWorkaround", &value))
 			{
@@ -401,6 +439,11 @@ namespace DivaImGui
 			{
 				if (*value == trueString)
 					forcetoonShader = true;
+			}
+			if (resolutionConfig.TryGetValue("forcevsyncfpslimit", &value))
+			{
+				if (*value == trueString)
+					force_fpslimit_vsync = true;
 			}
 			if (resolutionConfig.TryGetValue("fbWidth", &value))
 			{
@@ -445,6 +488,10 @@ namespace DivaImGui
 					lastvsync = true;
 					fpsLimitBak = DivaImGui::MainModule::fpsLimitSet;
 				}
+			}
+			if (resolutionConfig.TryGetValue("glswapinterval", &value))
+			{
+				swapinterval = std::stoi(*value);
 			}
 			if (resolutionConfig.TryGetValue("customRes", &value))
 			{
@@ -975,7 +1022,7 @@ namespace DivaImGui
 			}
 			if (ImGui::CollapsingHeader("Framerate"))
 			{
-				if (wglGetSwapIntervalEXT() == 0)
+				if (wglGetSwapIntervalEXT() == 0 || force_fpslimit_vsync == true)
 				{
 					ImGui::Text("--- Set the FPS cap to 0 only if you have vsync. ---");
 					ImGui::InputInt("Framerate Cap", &DivaImGui::MainModule::fpsLimitSet);
@@ -988,6 +1035,7 @@ namespace DivaImGui
 			{
 				ImGui::Text("--- Display ---");
 				ImGui::Checkbox("Vsync", &vsync);
+				ImGui::InputInt("Swap Interval", &swapinterval);
 				ImGui::Text("--- Anti-Aliasing ---");
 				ImGui::Checkbox("TAA (Temporal AA)", &temporalAA);
 				ImGui::Checkbox("MLAA (Morphological AA)", &morphologicalAA);
@@ -1083,6 +1131,23 @@ namespace DivaImGui
 			}
 			if (ImGui::CollapsingHeader("dbg"))
 			{
+				if (ImGui::CollapsingHeader("FramerateManager"))
+				{
+					ImGui::Checkbox("FramerateManager", &frameratemanager);
+					ImGui::Checkbox("FramerateManagerDbg", &frameratemanagerdbg);
+					if (frameratemanagerdbg)
+					{
+						ImGui::Checkbox("DbgAutoFramerate", &dbgAutoFramerate);
+						ImGui::InputFloat("Target", &frametime);
+					}
+					ImGui::InputFloat("AET_FRAME_DURATION", (float*)AET_FRAME_DURATION_ADDRESS);
+					ImGui::InputFloat("PV_FRAME_RATE_ADDRESS", (float*)PV_FRAME_RATE_ADDRESS);
+					ImGui::InputFloat("FRAME_SPEED_ADDRESS", (float*)FRAME_SPEED_ADDRESS);
+					ImGui::SliderFloat("FRAME_SPEED_ADDRESS", (float*)FRAME_SPEED_ADDRESS, 0, 1, "%.2f");
+					ImGui::InputFloat("pvStructPvFrameRate", (float*)(0x0000000140CDD978 + 0x2BF98));
+					ImGui::InputFloat("pvStructPvFrameSpeed", (float*)(0x0000000140CDD978 + 0x2BF9C));
+				}
+				/*
 				if (ImGui::Button("Play")) {
 					//BASS_ChannelPlay(stream, false);
 				};
@@ -1100,6 +1165,7 @@ namespace DivaImGui
 				//ImGui::InputInt("bufferFrameCount", &bufferFrameCount);
 
 				ImGui::InputInt("to read", &toread);
+				*/
 				/*
 				if (dxgi)
 				ImGui::Checkbox("dxgi", &dxgidraw);
@@ -1116,6 +1182,9 @@ namespace DivaImGui
 			}
 			ImGui::End();
 		}
+
+		if (frameratemanagerdbg)
+			setFramerateDbg();
 
 		if (showAbout)
 		{
@@ -1175,7 +1244,7 @@ namespace DivaImGui
 			if (DivaImGui::MainModule::fpsLimitSet != DivaImGui::MainModule::fpsLimit)
 			{
 				if (DivaImGui::MainModule::fpsLimitSet < 20)
-					setFrameratePD(99999);
+					setFrameratePD(0);
 				else
 					setFrameratePD(DivaImGui::MainModule::fpsLimitSet);
 				DivaImGui::MainModule::fpsLimit = DivaImGui::MainModule::fpsLimitSet;
@@ -1213,15 +1282,19 @@ namespace DivaImGui
 		if (vsync)
 		{
 			if (!lastvsync) {
-				wglSwapIntervalEXT(1);
-				fpsLimitBak = DivaImGui::MainModule::fpsLimitSet;
-				DivaImGui::MainModule::fpsLimitSet = 0;
+				wglSwapIntervalEXT(swapinterval);
+				if (!force_fpslimit_vsync) {
+					fpsLimitBak = DivaImGui::MainModule::fpsLimitSet;
+					DivaImGui::MainModule::fpsLimitSet = 0;
+				}
 				lastvsync = vsync;
 			}
 		}
 		else {
 			if (lastvsync) {
-				DivaImGui::MainModule::fpsLimitSet = fpsLimitBak;
+				if (!force_fpslimit_vsync) {
+					DivaImGui::MainModule::fpsLimitSet = fpsLimitBak;
+				}
 				wglSwapIntervalEXT(0);
 				lastvsync = vsync;
 			}
