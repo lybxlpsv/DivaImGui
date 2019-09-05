@@ -225,9 +225,25 @@ namespace DivaImGui
 	{
 
 	}
-	
+	static bool dbgframerateinitialized = false;
+
+	void InjectCode(void* address, const std::vector<uint8_t> data)
+	{
+		const size_t byteCount = data.size() * sizeof(uint8_t);
+
+		DWORD oldProtect;
+		VirtualProtect(address, byteCount, PAGE_EXECUTE_READWRITE, &oldProtect);
+		memcpy(address, data.data(), byteCount);
+		VirtualProtect(address, byteCount, oldProtect, nullptr);
+	}
+
 	void setFramerateDbg()
 	{
+		if (!dbgframerateinitialized)
+		{
+			InjectCode((void*)0x0000000140192D30, { 0xF3, 0x0F, 0x10, 0x05, 0x5C, 0x02, 0x00, 0x00 });
+			dbgframerateinitialized = true;
+		}
 		float frameRate = frametime;
 		float gameFrameRate = 1000.0f / ((float)(chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0f));
 		//printf("%3.2f\n", );
@@ -240,10 +256,10 @@ namespace DivaImGui
 			// During the GAME state the frame rate will be handled by the PvFrameRate instead
 			if (dbgAutoFramerate)
 			framespeed = frametime / gameFrameRate;
-			if (framespeed > 10000)
+			if (framespeed > 1000)
 			{
-				framespeed = 10000;
-				printf("[DivaImGui] Warning over 10000!\n");
+				framespeed = 1000;
+				printf("[DivaImGui] Warning over 1000!\n");
 			}
 			float defaultFrameRate = 60.0f;
 
