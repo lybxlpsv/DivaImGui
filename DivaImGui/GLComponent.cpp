@@ -226,7 +226,7 @@ namespace DivaImGui
 
 	}
 	static bool dbgframerateinitialized = false;
-
+	static bool forcedbgframerateon = false;
 	void InjectCode(void* address, const std::vector<uint8_t> data)
 	{
 		const size_t byteCount = data.size() * sizeof(uint8_t);
@@ -241,17 +241,71 @@ namespace DivaImGui
 	{
 		if (!dbgframerateinitialized)
 		{
+			//Aet Edit Pv Fix
 			InjectCode((void*)0x0000000140192D30, { 0xF3, 0x0F, 0x10, 0x05, 0x5C, 0x02, 0x00, 0x00 });
+			//AgeAge Hair Fix
+			InjectCode((void*)0x000000014054352F, { 0xF3, 0x0F, 0x59, 0x1D, 0x61, 0x72, 0x99, 0x00, 0xEB, 0xB7 });
+			//Fix Snow
+			InjectCode((void*)0x000000014035CEB8, { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 });
+			//Fix Wind Effect
+			DWORD oldProtect, bck;
+			VirtualProtect((BYTE*)0x14053ca71, 2, PAGE_EXECUTE_READWRITE, &oldProtect); // JMP 0x14053cab2
+			*((BYTE*)0x14053ca71 + 0) = 0xEB;
+			*((BYTE*)0x14053ca71 + 1) = 0x3F;
+			VirtualProtect((BYTE*)0x14053ca71, 2, oldProtect, &bck);
+
+			VirtualProtect((BYTE*)0x14053cab2, 8, PAGE_EXECUTE_READWRITE, &oldProtect); // MOVSS XMM0, dword ptr [0x1409a1eb4] (60.0f)
+			*((BYTE*)0x14053cab2 + 0) = 0xF3;
+			*((BYTE*)0x14053cab2 + 1) = 0x0F;
+			*((BYTE*)0x14053cab2 + 2) = 0x10;
+			*((BYTE*)0x14053cab2 + 3) = 0x05;
+			*((BYTE*)0x14053cab2 + 4) = 0xFA;
+			*((BYTE*)0x14053cab2 + 5) = 0x53;
+			*((BYTE*)0x14053cab2 + 6) = 0x46;
+			*((BYTE*)0x14053cab2 + 7) = 0x00;
+			VirtualProtect((BYTE*)0x14053cab2, 8, oldProtect, &bck);
+
+			VirtualProtect((BYTE*)0x14053caba, 5, PAGE_EXECUTE_READWRITE, &oldProtect); // JMP 0x14053c901
+			*((BYTE*)0x14053caba + 0) = 0xE9;
+			*((BYTE*)0x14053caba + 1) = 0x42;
+			*((BYTE*)0x14053caba + 2) = 0xFE;
+			*((BYTE*)0x14053caba + 3) = 0xFF;
+			*((BYTE*)0x14053caba + 4) = 0xFF;
+			VirtualProtect((BYTE*)0x14053caba, 5, oldProtect, &bck);
+
+			VirtualProtect((BYTE*)0x14053c901, 8, PAGE_EXECUTE_READWRITE, &oldProtect); // DIVSS XMM0, dword ptr [0x140eda6d0] (framerate)
+			*((BYTE*)0x14053c901 + 0) = 0xF3;
+			*((BYTE*)0x14053c901 + 1) = 0x0F;
+			*((BYTE*)0x14053c901 + 2) = 0x5E;
+			*((BYTE*)0x14053c901 + 3) = 0x05;
+			*((BYTE*)0x14053c901 + 4) = 0xC7;
+			*((BYTE*)0x14053c901 + 5) = 0xDD;
+			*((BYTE*)0x14053c901 + 6) = 0x99;
+			*((BYTE*)0x14053c901 + 7) = 0x00;
+			VirtualProtect((BYTE*)0x14053c901, 8, oldProtect, &bck);
+
+			VirtualProtect((BYTE*)0x14053c909, 5, PAGE_EXECUTE_READWRITE, &oldProtect); // JMP 0x14053ca76
+			*((BYTE*)0x14053c909 + 0) = 0xE9;
+			*((BYTE*)0x14053c909 + 1) = 0x68;
+			*((BYTE*)0x14053c909 + 2) = 0x01;
+			*((BYTE*)0x14053c909 + 3) = 0x00;
+			*((BYTE*)0x14053c909 + 4) = 0x00;
+			VirtualProtect((BYTE*)0x14053c909, 5, oldProtect, &bck);
 			dbgframerateinitialized = true;
 		}
 		float frameRate = frametime;
 		float gameFrameRate = 1000.0f / ((float)(chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0f));
+		//Fix Snow
+		*(float*)0x140C9A4E0 = gameFrameRate / 60.0f;
+		if (*(float*)0x140C9A4E0 >= 1000.0f) *(float*)0x140C9A4E0 = 1000.0f;
 		//printf("%3.2f\n", );
 		*(float*)AET_FRAME_DURATION_ADDRESS = 1.0f / gameFrameRate;
 		*(float*)PV_FRAME_RATE_ADDRESS = frameRate;
 
 		bool inGame = *(GameState*)CURRENT_GAME_STATE_ADDRESS == GS_GAME;
-		if (inGame)
+		bool inPv = *(SubGameState*)(0x140EDA82C) == SUB_GAME_MAIN;
+		bool inDemo = *(SubGameState*)(0x140EDA82C) == SUB_DEMO;
+		if (inGame || inPv || inDemo || forcedbgframerateon)
 		{
 			// During the GAME state the frame rate will be handled by the PvFrameRate instead
 			if (dbgAutoFramerate)
@@ -1164,11 +1218,12 @@ namespace DivaImGui
 			{
 				if (ImGui::CollapsingHeader("FramerateManager"))
 				{
-					ImGui::Checkbox("FramerateManager", &frameratemanager);
-					ImGui::Checkbox("FramerateManagerDbg", &frameratemanagerdbg);
+					ImGui::Checkbox("FramerateManager1", &frameratemanager);
+					ImGui::Checkbox("FramerateManager2", &frameratemanagerdbg);
 					if (frameratemanagerdbg)
 					{
 						ImGui::Checkbox("DbgAutoFramerate", &dbgAutoFramerate);
+						ImGui::Checkbox("DbgForceFramerate", &forcedbgframerateon);
 						ImGui::InputFloat("Target", &frametime);
 					}
 					ImGui::InputFloat("AET_FRAME_DURATION", (float*)AET_FRAME_DURATION_ADDRESS);
