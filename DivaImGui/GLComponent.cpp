@@ -241,65 +241,47 @@ namespace DivaImGui
 	{
 		if (!dbgframerateinitialized)
 		{
-			//Aet Edit Pv Fix
-			InjectCode((void*)0x0000000140192D30, { 0xF3, 0x0F, 0x10, 0x05, 0x5C, 0x02, 0x00, 0x00 });
-			//AgeAge Hair Fix
-			InjectCode((void*)0x000000014054352F, { 0xF3, 0x0F, 0x59, 0x1D, 0x61, 0x72, 0x99, 0x00, 0xEB, 0xB7 });
-			//Fix Snow
-			InjectCode((void*)0x000000014035CEB8, { 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90, 0x90 });
-			//Fix Wind Effect
-			DWORD oldProtect, bck;
-			VirtualProtect((BYTE*)0x14053ca71, 2, PAGE_EXECUTE_READWRITE, &oldProtect); // JMP 0x14053cab2
-			*((BYTE*)0x14053ca71 + 0) = 0xEB;
-			*((BYTE*)0x14053ca71 + 1) = 0x3F;
-			VirtualProtect((BYTE*)0x14053ca71, 2, oldProtect, &bck);
+			// This const variable is stored inside a data segment so we don't want to throw any access violations
+			DWORD oldProtect;
+			VirtualProtect((void*)AET_FRAME_DURATION_ADDRESS, sizeof(float), PAGE_EXECUTE_READWRITE, &oldProtect);
 
-			VirtualProtect((BYTE*)0x14053cab2, 8, PAGE_EXECUTE_READWRITE, &oldProtect); // MOVSS XMM0, dword ptr [0x1409a1eb4] (60.0f)
-			*((BYTE*)0x14053cab2 + 0) = 0xF3;
-			*((BYTE*)0x14053cab2 + 1) = 0x0F;
-			*((BYTE*)0x14053cab2 + 2) = 0x10;
-			*((BYTE*)0x14053cab2 + 3) = 0x05;
-			*((BYTE*)0x14053cab2 + 4) = 0xFA;
-			*((BYTE*)0x14053cab2 + 5) = 0x53;
-			*((BYTE*)0x14053cab2 + 6) = 0x46;
-			*((BYTE*)0x14053cab2 + 7) = 0x00;
-			VirtualProtect((BYTE*)0x14053cab2, 8, oldProtect, &bck);
+			// fix auto speed for high fps
+			InjectCode((void*)0x140192d7b, { 0x90, 0x90, 0x90 });
 
-			VirtualProtect((BYTE*)0x14053caba, 5, PAGE_EXECUTE_READWRITE, &oldProtect); // JMP 0x14053c901
-			*((BYTE*)0x14053caba + 0) = 0xE9;
-			*((BYTE*)0x14053caba + 1) = 0x42;
-			*((BYTE*)0x14053caba + 2) = 0xFE;
-			*((BYTE*)0x14053caba + 3) = 0xFF;
-			*((BYTE*)0x14053caba + 4) = 0xFF;
-			VirtualProtect((BYTE*)0x14053caba, 5, oldProtect, &bck);
+			// fix frame speed slider initial value (should ignore effect of auto speed)
+			InjectCode((void*)0x140338f2f, { 0xf3, 0x0f, 0x10, 0x0d, 0x61, 0x18, 0xba, 0x00 }); // MOVSS XMM1, dword ptr [0x140eda798] (raw framespeed)
+			InjectCode((void*)0x140338f37, { 0x48, 0x8b, 0x8f, 0x80, 0x01, 0x00, 0x00 });       // MOV RCX, qword ptr [0x180 + RDI]
 
-			VirtualProtect((BYTE*)0x14053c901, 8, PAGE_EXECUTE_READWRITE, &oldProtect); // DIVSS XMM0, dword ptr [0x140eda6d0] (framerate)
-			*((BYTE*)0x14053c901 + 0) = 0xF3;
-			*((BYTE*)0x14053c901 + 1) = 0x0F;
-			*((BYTE*)0x14053c901 + 2) = 0x5E;
-			*((BYTE*)0x14053c901 + 3) = 0x05;
-			*((BYTE*)0x14053c901 + 4) = 0xC7;
-			*((BYTE*)0x14053c901 + 5) = 0xDD;
-			*((BYTE*)0x14053c901 + 6) = 0x99;
-			*((BYTE*)0x14053c901 + 7) = 0x00;
-			VirtualProtect((BYTE*)0x14053c901, 8, oldProtect, &bck);
+			InjectCode((void*)0x140338ebe, { 0xf3, 0x0f, 0x10, 0x0d, 0xd2, 0x18, 0xba, 0x00 }); // MOVSS XMM1, dword ptr [0x140eda798] (raw framespeed)
+			InjectCode((void*)0x140338ec6, { 0x48, 0x8b, 0x05, 0xfb, 0xb1, 0xe5, 0x00 });       // MOV RAX, qword ptr [0x1411940c8]
+			InjectCode((void*)0x140338ecd, { 0x48, 0x8b, 0x88, 0x80, 0x01, 0x00, 0x00 });       // MOV RCX, qword ptr [0x180 + RAX]
 
-			VirtualProtect((BYTE*)0x14053c909, 5, PAGE_EXECUTE_READWRITE, &oldProtect); // JMP 0x14053ca76
-			*((BYTE*)0x14053c909 + 0) = 0xE9;
-			*((BYTE*)0x14053c909 + 1) = 0x68;
-			*((BYTE*)0x14053c909 + 2) = 0x01;
-			*((BYTE*)0x14053c909 + 3) = 0x00;
-			*((BYTE*)0x14053c909 + 4) = 0x00;
-			VirtualProtect((BYTE*)0x14053c909, 5, oldProtect, &bck);
+			// fix AETs
+			InjectCode((void*)0x140170394, { 0xF3, 0x0F, 0x5E, 0x05, 0x34, 0xA3, 0xD6, 0x00 }); // DIVSS XMM0, dword ptr [0x140eda6d0] (framerate)
+
+			// fix edit PV AETs
+			InjectCode((void*)0x140192d30, { 0xF3, 0x0F, 0x10, 0x05, 0x5C, 0x02, 0x00, 0x00 }); // MOVSS XMM0, dword ptr [0x140192f94]
+
+			// fix ageage hair effect
+			InjectCode((void*)0x14054352f, { 0xE8, 0x1C, 0xF8, 0xC4, 0xFF }); // CALL 0x140192d50 (getFrameSpeed)
+			InjectCode((void*)0x140543534, { 0xF3, 0x0F, 0x59, 0xD8 });       // MULSS XMM3, XMM0
+			InjectCode((void*)0x140543538, { 0xEB, 0xB6 });                   // JMP 0x1405434f0
+
+			// fix wind effect
+			InjectCode((void*)0x14053ca71, { 0xEB, 0x3F });                                     // JMP 0x14053cab2
+			InjectCode((void*)0x14053cab2, { 0xF3, 0x0F, 0x10, 0x05, 0xFA, 0x53, 0x46, 0x00 }); // MOVSS XMM0, dword ptr [0x1409a1eb4] (60.0f)
+			InjectCode((void*)0x14053caba, { 0xE9, 0x42, 0xFE, 0xFF, 0xFF });                   // JMP 0x14053c901
+			InjectCode((void*)0x14053c901, { 0xF3, 0x0F, 0x5E, 0x05, 0xC7, 0xDD, 0x99, 0x00 }); // DIVSS XMM0, dword ptr [0x140eda6d0] (framerate)
+			InjectCode((void*)0x14053c909, { 0xE9, 0x68, 0x01, 0x00, 0x00 });                   // JMP 0x14053ca76
 			dbgframerateinitialized = true;
 		}
 		float frameRate = frametime;
 		float gameFrameRate = 1000.0f / ((float)(chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0f));
 		//Fix Snow
 		*(float*)0x140C9A4E0 = gameFrameRate / 60.0f;
-		if (*(float*)0x140C9A4E0 >= 1000.0f) *(float*)0x140C9A4E0 = 1000.0f;
+		if (*(float*)0x140C9A4E0 >= 5000.0f) *(float*)0x140C9A4E0 = 5000.0f;
 		//printf("%3.2f\n", );
-		*(float*)AET_FRAME_DURATION_ADDRESS = 1.0f / gameFrameRate;
+		//*(float*)AET_FRAME_DURATION_ADDRESS = 1.0f / 60.0f;
 		*(float*)PV_FRAME_RATE_ADDRESS = frameRate;
 
 		bool inGame = *(GameState*)CURRENT_GAME_STATE_ADDRESS == GS_GAME;
