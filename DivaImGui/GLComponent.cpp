@@ -100,6 +100,8 @@ namespace DivaImGui
 	static float frametime = 60.0f;
 	static int swapinterval = 1;
 	static bool force_fpslimit_vsync = false;
+	static bool frm_averaged_fps = false;
+
 	const std::string RESOLUTION_CONFIG_FILE_NAME = "graphics.ini";
 
 	static float res_scale[1000];
@@ -277,6 +279,7 @@ namespace DivaImGui
 		}
 		float frameRate = frametime;
 		float gameFrameRate = 1000.0f / ((float)(chrono::duration_cast<std::chrono::microseconds>(end - start).count() / 1000.0f));
+		if (frm_averaged_fps) gameFrameRate = ImGui::GetIO().Framerate;
 		//Fix Snow
 		*(float*)0x140C9A4E0 = gameFrameRate / 60.0f;
 		if (*(float*)0x140C9A4E0 >= 5000.0f) *(float*)0x140C9A4E0 = 5000.0f;
@@ -1206,6 +1209,7 @@ namespace DivaImGui
 					{
 						ImGui::Checkbox("DbgAutoFramerate", &dbgAutoFramerate);
 						ImGui::Checkbox("DbgForceFramerate", &forcedbgframerateon);
+						ImGui::Checkbox("AveragedFramerate", &frm_averaged_fps);
 						ImGui::InputFloat("Target", &frametime);
 					}
 					ImGui::InputFloat("AET_FRAME_DURATION", (float*)AET_FRAME_DURATION_ADDRESS);
