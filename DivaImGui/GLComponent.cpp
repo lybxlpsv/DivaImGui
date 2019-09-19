@@ -125,6 +125,8 @@ namespace DivaImGui
 	static bool forcetoonShader = false;
 	static bool forcetoonShader2 = false;
 
+	static bool forceDisableToonShaderOutline = false;
+
 	static bool scaling = false;
 
 	PFNWGLSWAPINTERVALEXTPROC       wglSwapIntervalEXT = NULL;
@@ -510,6 +512,11 @@ namespace DivaImGui
 				if (*value == trueString)
 					forcetoonShader = true;
 			}
+			if (resolutionConfig.TryGetValue("forceDisbleToonShaderOutline", &value))
+			{
+				if (*value == trueString)
+					forceDisableToonShaderOutline = true;
+			}
 			if (resolutionConfig.TryGetValue("forcevsyncfpslimit", &value))
 			{
 				if (*value == trueString)
@@ -666,6 +673,22 @@ namespace DivaImGui
 			}
 		}
 
+		//reput back original value
+		{
+			DWORD oldProtect, bck;
+			VirtualProtect((BYTE*)0x000000014050214F, 2, PAGE_EXECUTE_READWRITE, &oldProtect);
+			*((BYTE*)0x000000014050214F + 0) = 0x74;
+			*((BYTE*)0x000000014050214F + 1) = 0x18;
+			VirtualProtect((BYTE*)0x000000014050214F, 2, oldProtect, &bck);
+
+		}
+
+		{
+			DWORD oldProtect, bck;
+			VirtualProtect((BYTE*)0x0000000140641102, 1, PAGE_EXECUTE_READWRITE, &oldProtect);
+			*((BYTE*)0x0000000140641102 + 0) = 0x00;
+			VirtualProtect((BYTE*)0x0000000140641102, 1, oldProtect, &bck);
+		}
 
 		ImGui::CreateContext();
 		ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -840,11 +863,22 @@ namespace DivaImGui
 			VirtualProtect((BYTE*)0x00000001411AB680, 1, oldProtect, &bck);
 		}
 
+		if (toonShader)
+		{
+			if (forceDisableToonShaderOutline)
+			{
+				InjectCode((void*)0x14CC924E2, { 0x00 });
+			}
+			else {
+				InjectCode((void*)0x14CC924E2, { 0x01 });
+			}
+		} else InjectCode((void*)0x14CC924E2, { 0x01 });
 
 		if (toonShader)
 		{
 			if (!toonShader2)
 			{
+				InjectCode((void*)0x1406410f6, { 0x0F, 0x2F, 0xC0, 0x90, 0x90, 0x90, 0x90 });
 				{
 					DWORD oldProtect, bck;
 					VirtualProtect((BYTE*)0x000000014050214F, 2, PAGE_EXECUTE_READWRITE, &oldProtect);
@@ -853,7 +887,7 @@ namespace DivaImGui
 					VirtualProtect((BYTE*)0x000000014050214F, 2, oldProtect, &bck);
 
 				}
-
+				/*
 				{
 					DWORD oldProtect, bck;
 					VirtualProtect((BYTE*)0x0000000140641102, 1, PAGE_EXECUTE_READWRITE, &oldProtect);
@@ -861,13 +895,14 @@ namespace DivaImGui
 					VirtualProtect((BYTE*)0x0000000140641102, 1, oldProtect, &bck);
 
 				}
-
+				*/
 				toonShader2 = true;
 			}
 		}
 		else {
 			if (toonShader2)
 			{
+				InjectCode((void*)0x1406410f6, { 0x0F, 0x2F, 0x05, 0xEB, 0x55, 0x36, 0x00 });
 				{
 					DWORD oldProtect, bck;
 					VirtualProtect((BYTE*)0x000000014050214F, 2, PAGE_EXECUTE_READWRITE, &oldProtect);
@@ -876,14 +911,15 @@ namespace DivaImGui
 					VirtualProtect((BYTE*)0x000000014050214F, 2, oldProtect, &bck);
 
 				}
-
+				/*
 				{
 					DWORD oldProtect, bck;
 					VirtualProtect((BYTE*)0x0000000140641102, 1, PAGE_EXECUTE_READWRITE, &oldProtect);
 					*((BYTE*)0x0000000140641102 + 0) = 0x00;
 					VirtualProtect((BYTE*)0x0000000140641102, 1, oldProtect, &bck);
-				}
 
+				}
+				*/
 				toonShader2 = false;
 			}
 		}
@@ -1113,6 +1149,8 @@ namespace DivaImGui
 				ImGui::Checkbox("Toon Shader (When Running with: -hdtv1080/-aa)", &toonShader);
 				ImGui::Text("--- Misc ---");
 				ImGui::Checkbox("Force Toon Shader", &forcetoonShader);
+				if (toonShader)
+					ImGui::Checkbox("Force Disable Toon Shader Outline", &forceDisableToonShaderOutline);
 				ImGui::Checkbox("Sprites", &enablesprites);
 
 				if (enablesprites)
