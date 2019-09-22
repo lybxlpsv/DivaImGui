@@ -306,7 +306,6 @@ namespace DivaImGui::V101
 
 		defaultAetFrameDuration = *(float*)AET_FRAME_DURATION_ADDRESS;
 
-		glewInit();
 		fprintf(stdout, "Status: Using GLEW %s\n", glewGetString(GLEW_VERSION));
 
 		DivaImGui::FileSystem::ConfigFile resolutionConfig(MainModule::GetModuleDirectory(), RESOLUTION_CONFIG_FILE_NAME.c_str());
@@ -1116,6 +1115,8 @@ namespace DivaImGui::V101
 
 	void GLComponent101::Initialize()
 	{
+		glewInit();
+
 		HMODULE hMod = GetModuleHandle(L"opengl32.dll");
 		void* ptr = GetProcAddress(hMod, "wglSwapBuffers");
 		MH_Initialize();
