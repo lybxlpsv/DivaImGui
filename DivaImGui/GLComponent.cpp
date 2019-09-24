@@ -35,7 +35,7 @@ namespace DivaImGui
 	steady_clock end;
 
 	// Function prototype
-	
+
 	typedef BOOL(__stdcall* GLSwapBuffers)(HDC);
 	typedef void(__stdcall* GLShaderSource)(GLuint, GLsizei, const GLchar**, const GLint*);
 	typedef void(__stdcall* GLShaderSourceARB)(GLhandleARB, GLsizei, const GLcharARB**, const GLint*);
@@ -161,6 +161,8 @@ namespace DivaImGui
 
 	static bool forceDisableToonShaderOutline = false;
 
+	static bool shaderafthookd = false;
+	static int ReShadeState = 0;
 	static bool copyfb = 0;
 	static int copyfbid = 0;
 	static bool scaling = false;
@@ -307,7 +309,7 @@ namespace DivaImGui
 					//glDeleteShader(allocatedshaders[i]);
 					printf("glBindProgramARB");
 					//glGenProgramsARB(1, (GLuint*)allocatedshaders[i]);
-					
+
 					printf("%d\n", allocshdenum[i]);
 					printf("%d\n", allocatedshaders[i]);
 					glBindProgramARB(allocshdenum[i], allocatedshaders[i]);
@@ -590,6 +592,10 @@ namespace DivaImGui
 			{
 				if (*value == trueString)
 					toonShader = true;
+			}
+			if (resolutionConfig.TryGetValue("ReShadeState", &value))
+			{
+				ReShadeState = std::stoi(*value);
 			}
 			if (resolutionConfig.TryGetValue("NoCardWorkaround", &value))
 			{
@@ -1241,6 +1247,11 @@ namespace DivaImGui
 				ImGui::Checkbox("Force Toon Shader", &forcetoonShader);
 				if (toonShader)
 					ImGui::Checkbox("Force Disable Toon Shader Outline", &forceDisableToonShaderOutline);
+				if (*fnReshadeRender != nullptr)
+				{
+					ImGui::Text("--- ReShade ---");
+					ImGui::SliderInt("ReShade Render Pass", &ReShadeState, 0 , 1);
+				}
 				ImGui::Checkbox("Sprites", &enablesprites);
 
 				if (enablesprites)
@@ -1543,9 +1554,23 @@ namespace DivaImGui
 
 	BOOL __stdcall hwglSwapBuffers(_In_ HDC hDc)
 	{
+		if (shaderafthookd)
+			if (ReShadeState == 1)
+				if (*fnReshadeRender != nullptr)
+					fnReshadeRender();
+				else {
+					void* ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.dva"), "ReshadeRender");
+					if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"opengl32.dll"), "ReshadeRender");
+					//printf("[DivaImGui] ReshadeRender=%p\n", ptr);
+					if (ptr != nullptr)
+					{
+						fnReshadeRender = (ReshadeRender)ptr;
+						fnReshadeRender();
+					}
+				}
 		RenderGUI();
 		bool result = owglSwapBuffers(hDc);
-		
+
 		return result;
 	}
 
@@ -1584,22 +1609,23 @@ namespace DivaImGui
 		if (CatchAETRenderPass)
 		{
 			CatchAETRenderPass = false;
-			if (*fnReshadeRender != nullptr)
-				fnReshadeRender();
-			else {
-				void* ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.dva"), "ReshadeRender");
-				if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"opengl32.dll"), "ReshadeRender");
-				//printf("[DivaImGui] ReshadeRender=%p\n", ptr);
-				if (ptr != nullptr)
-				{
-					fnReshadeRender = (ReshadeRender)ptr;
+			if (ReShadeState == 0)
+				if (*fnReshadeRender != nullptr)
 					fnReshadeRender();
+				else {
+					void* ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.dva"), "ReshadeRender");
+					if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"opengl32.dll"), "ReshadeRender");
+					//printf("[DivaImGui] ReshadeRender=%p\n", ptr);
+					if (ptr != nullptr)
+					{
+						fnReshadeRender = (ReshadeRender)ptr;
+						fnReshadeRender();
+					}
 				}
-			}
 		}
 		return FNGlGetError();
 	}
-	
+
 	void __stdcall hwglProgramStringARB(GLenum target, GLenum format, GLsizei len, const void* pointer)
 	{
 		/*
@@ -1755,6 +1781,7 @@ namespace DivaImGui
 			DetourUpdateThread(GetCurrentThread());
 			DetourAttach(&(PVOID&)FNGlGetError, (PVOID)hwglGetError);
 			DetourTransactionCommit();
+			shaderafthookd = true;
 		}
 		/*
 		if (L == "glShaderSource")
