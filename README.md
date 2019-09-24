@@ -6,7 +6,7 @@ An in-game UI which can be used with [TLAC](https://github.com/samyuu/TotallyLeg
 
 [Stable Releases](https://github.com/lybxlpsv/DivaImGui/releases)
 
-[Development Build](https://ci.appveyor.com/project/lybxlpsv/divaimgui/build/artifacts) (Recommended when using latest development build of PD Loader)
+[Development Build](https://ci.appveyor.com/project/lybxlpsv/divaimgui/build/artifacts) (Use this when using latest development build of PD Loader)
 
 # Special Thanks
 
