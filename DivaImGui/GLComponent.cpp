@@ -1318,7 +1318,11 @@ namespace DivaImGui
 					ImGui::SliderInt("ReShade Render Pass", &ReShadeState, 0, 1);
 				}
 				ImGui::Checkbox("Sprites", &enablesprites);
-				if (ImGui::Button("Reload Shaders")) { refreshshd = 1; }
+				if (shaderafthookd)
+				{
+					ImGui::Text("--- Shader ---");
+					if (ImGui::Button("Reload Shaders")) { refreshshd = 1; }
+				}
 				if (enablesprites)
 				{
 					*(int*)0x00000001411AD328 = 0x1010001;
@@ -1383,7 +1387,7 @@ namespace DivaImGui
 				ImGui::Checkbox("dbgshowrect", &dbgtexshow);
 				if (dbgtexshow)
 					ImGui::InputInt("TexId", &recttexture);
-				
+
 				ImGui::InputInt("Allocated Shader Count", &allocatedshadercount);
 
 			}
