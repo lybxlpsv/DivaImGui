@@ -291,9 +291,8 @@ namespace DivaImGui
 			return 0;
 	}
 
-	void RefreshShaders()
+	void RefreshShaders(HDC hdc = NULL)
 	{
-		printf("REFRESHSHADER!");
 		fnDNRefreshShaders();
 
 		glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
@@ -303,22 +302,51 @@ namespace DivaImGui
 		{
 			if (allocatedshaders[i] != 1)
 			{
-				int newlen = fnDNProcessShader((int)allocshdorigptr[i], (int)allocshdptr[i], allocshdlen[i], 0, 0);
+				int newlen = fnDNProcessShader((int)allocshdorigptr[i], (int)allocshdptr[i], allocshdlen[i], allocshdenum[i], allocatedshaders[i]);
 				if (newlen != -1) {
-					printf("Deleto");
+					//printf("Deleto");
 					//glDeleteShader(allocatedshaders[i]);
-					printf("glBindProgramARB");
+					//printf("glBindProgramARB");
 					//glGenProgramsARB(1, (GLuint*)allocatedshaders[i]);
 
-					printf("%d\n", allocshdenum[i]);
-					printf("%d\n", allocatedshaders[i]);
+					//printf("%d\n", allocshdenum[i]);
+					//printf("%d\n", allocatedshaders[i]);
 					glBindProgramARB(allocshdenum[i], allocatedshaders[i]);
-					printf("fnDNProcessShader");
+					//printf("fnDNProcessShader");
 
-					printf("fnGLProgramStringARB");
+					//printf("fnGLProgramStringARB");
 					fnGLProgramStringARB(allocshdenum[i], GL_PROGRAM_FORMAT_ASCII_ARB, newlen, allocshdptr[i]);
 					glGetError();
 					glDisable(allocshdenum[i]);
+
+					if (hdc != NULL)
+					{
+						DisableProcessWindowsGhosting();
+						glClear(GL_COLOR_BUFFER_BIT);
+						ImGui::SetNextWindowBgAlpha(uiTransparency);
+
+						ImGui_ImplWin32_NewFrame();
+						ImGui_ImplOpenGL2_NewFrame();
+						ImGui::NewFrame();
+
+						{
+							ImGuiWindowFlags window_flags = 0;
+							bool p_open = true;
+							window_flags |= ImGuiWindowFlags_NoMove;
+							window_flags |= ImGuiWindowFlags_NoResize;
+							window_flags |= ImGuiWindowFlags_NoTitleBar;
+							window_flags |= ImGuiWindowFlags_NoCollapse;
+							window_flags |= ImGuiWindowFlags_AlwaysAutoResize;
+							ImGui::Begin("ELAC", &p_open, window_flags);
+							ImGui::SetWindowPos(ImVec2(0, 0));
+							ImGui::Text("Compiling Shader! id=%d len=%d", allocatedshaders[i], newlen);
+							ImGui::End();
+						}
+
+						ImGui::Render();
+						ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
+						owglSwapBuffers(hdc);
+					}
 				}
 				//
 				/*
@@ -371,7 +399,7 @@ namespace DivaImGui
 		if (frm_averaged_fps) gameFrameRate = ImGui::GetIO().Framerate;
 		//Fix Snow
 		*(float*)0x140C9A4E0 = gameFrameRate / 60.0f;
-		if (*(float*)0x140C9A4E0 >= 5000.0f)* (float*)0x140C9A4E0 = 5000.0f;
+		if (*(float*)0x140C9A4E0 >= 5000.0f)*(float*)0x140C9A4E0 = 5000.0f;
 		//printf("%3.2f\n", );
 		//*(float*)AET_FRAME_DURATION_ADDRESS = 1.0f / 60.0f;
 		*(float*)PV_FRAME_RATE_ADDRESS = frameRate;
@@ -633,7 +661,7 @@ namespace DivaImGui
 			if (resolutionConfig.TryGetValue("disableDof", &value))
 			{
 				if (*value == trueString)
-					* (int*)0x00000001411AB650 = 1;
+					*(int*)0x00000001411AB650 = 1;
 			}
 			if (resolutionConfig.TryGetValue("showFps", &value))
 			{
@@ -1067,6 +1095,8 @@ namespace DivaImGui
 	}
 
 	static bool enablesprites = true;
+	static int recttexture = 4;
+	static bool dbgtexshow = false;
 
 	void RenderGUI()
 	{
@@ -1108,6 +1138,41 @@ namespace DivaImGui
 			glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, 0);
 			glBlitFramebufferEXT(0, 0, *fbWidth, *fbHeight, 0, 0, uiWidth, uiHeight,
 				GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+		}
+
+		if (dbgtexshow)
+		{
+			glViewport(0, 0, uiWidth, uiHeight);
+			int x = 0;
+			int y = 0;
+			int w = 1280;
+			int h = 720;
+
+			int i1 = -1;	int i2 = 1;
+			int i3 = -1;	int i4 = 0;
+			int i5 = 0;		int i6 = 0;
+			int i7 = 0;		int i8 = 1;
+
+			glBindTexture(GL_TEXTURE_2D, recttexture);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			glEnable(GL_TEXTURE_2D);
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+
+			glBegin(GL_QUADS);
+			glTexCoord2i(i1, i2); glVertex2i(x, y);
+			glTexCoord2i(i3, i4); glVertex2i(x, y + h);
+			glTexCoord2i(i5, i6); glVertex2i(x + h, y + h);
+			glTexCoord2i(i7, i8); glVertex2i(x + h, y);
+			glEnd();
+			glDisable(GL_TEXTURE_2D);
+
+			glBindTexture(GL_TEXTURE_2D, 0);
 		}
 
 		ImGui::SetNextWindowBgAlpha(uiTransparency);
@@ -1250,10 +1315,10 @@ namespace DivaImGui
 				if (*fnReshadeRender != nullptr)
 				{
 					ImGui::Text("--- ReShade ---");
-					ImGui::SliderInt("ReShade Render Pass", &ReShadeState, 0 , 1);
+					ImGui::SliderInt("ReShade Render Pass", &ReShadeState, 0, 1);
 				}
 				ImGui::Checkbox("Sprites", &enablesprites);
-
+				if (ImGui::Button("Reload Shaders")) { refreshshd = 1; }
 				if (enablesprites)
 				{
 					*(int*)0x00000001411AD328 = 0x1010001;
@@ -1315,20 +1380,10 @@ namespace DivaImGui
 			ImGui::Begin("Debug Ui", &debugUi, window_flags);
 			if (ImGui::CollapsingHeader("SHADERS"))
 			{
-				ImGui::Checkbox("CopyFB", &copyfb);
-				ImGui::InputInt("copyfbid", &copyfbid);
-
-				if (copyfb)
-				{
-					glDisable(GL_SCISSOR_TEST);
-					glDisable(GL_FRAMEBUFFER_SRGB);
-					///glBindFramebufferEXT(GL_READ_FRAMEBUFFER, copyfbid);
-					//glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, 0);
-					//glReadBuffer(GL_BACK);
-					//glDrawBuffer(GL_COLOR_ATTACHMENT0);
-					//glBlitFramebufferEXT(0, 0, 1280, 720, 0, 0, 640, 360, GL_COLOR_BUFFER_BIT, GL_NEAREST);
-				}
-				if (ImGui::Button("Refresh Shaders")) { refreshshd = 1; }
+				ImGui::Checkbox("dbgshowrect", &dbgtexshow);
+				if (dbgtexshow)
+					ImGui::InputInt("TexId", &recttexture);
+				
 				ImGui::InputInt("Allocated Shader Count", &allocatedshadercount);
 
 			}
@@ -1533,23 +1588,6 @@ namespace DivaImGui
 		//if (dxgidraw)
 		//System->Run();
 		start = high_resolution_clock::now();
-
-		if (refreshshd == 1)
-		{
-			/*
-			glEnable(GL_VERTEX_PROGRAM_ARB);
-			glGetError();
-			printf("AM I OK?");
-			glBindProgramARB(GL_VERTEX_PROGRAM_ARB, 1);
-			glGetError();
-			printf("AM I OK?");
-			glDisable(GL_VERTEX_PROGRAM_ARB);
-			glGetError();
-			*/
-			RefreshShaders();
-			printf("AM I OK?");
-			refreshshd = 0;
-		}
 	}
 
 	BOOL __stdcall hwglSwapBuffers(_In_ HDC hDc)
@@ -1570,7 +1608,11 @@ namespace DivaImGui
 				}
 		RenderGUI();
 		bool result = owglSwapBuffers(hDc);
-
+		if (refreshshd == 1)
+		{
+			RefreshShaders(hDc);
+			refreshshd = 0;
+		}
 		return result;
 	}
 
@@ -1726,7 +1768,7 @@ namespace DivaImGui
 			int curpos = allocatedshadercount;
 			allocatedshadercount++;
 
-			int newlen = fnDNProcessShader((int)pointer, (int)allocshdptr[curpos], len, 0, 0);
+			int newlen = fnDNProcessShader((int)pointer, (int)allocshdptr[curpos], len, target, lastprogram);
 			if (newlen == -1)
 				return fnGLProgramStringARB(target, format, len, pointer);
 			return fnGLProgramStringARB(target, format, newlen, allocshdptr[curpos]);
@@ -1738,37 +1780,45 @@ namespace DivaImGui
 
 	PROC __stdcall hWGlGetProcAddress(LPCSTR L)
 	{
-		//printf("[DivaImGui] ");
-		//printf(L);
-		//printf("\n");
 		PROC leproc = wGlGetProcAddress(L);
+
 		if (!wdetoursf)
 		{
 			wdetoursf = true;
-			fnGLShaderSource = (GLShaderSource)wglGetProcAddress("glShaderSource");
-			fnGLShaderSourceARB = (GLShaderSourceARB)wglGetProcAddress("glShaderSourceARB");
-			fnGLProgramStringARB = (GLProgramStringARB)wglGetProcAddress("glProgramStringARB");
+			const char* path = "shadersaft/";
+			if (dirExists(path) == 1) {
+				fnGLShaderSource = (GLShaderSource)wglGetProcAddress("glShaderSource");
+				fnGLShaderSourceARB = (GLShaderSourceARB)wglGetProcAddress("glShaderSourceARB");
+				fnGLProgramStringARB = (GLProgramStringARB)wglGetProcAddress("glProgramStringARB");
+
+				fnDNInitialize();
+
+				printf("[DivaImGui] Hooking glShaderSource=%p\n", fnGLShaderSource);
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourAttach(&(PVOID&)fnGLShaderSource, (PVOID)hwglShaderSource);
+				DetourTransactionCommit();
+
+				printf("[DivaImGui] Hooking glShaderSourceARB=%p\n", fnGLShaderSourceARB);
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourAttach(&(PVOID&)fnGLShaderSourceARB, (PVOID)hwglShaderSourceARB);
+				DetourTransactionCommit();
+
+				printf("[DivaImGui] Hooking glProgramStringARB=%p\n", fnGLProgramStringARB);
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourAttach(&(PVOID&)fnGLProgramStringARB, (PVOID)hwglProgramStringARB);
+				DetourTransactionCommit();
+			}
+			else {
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourDetach(&(PVOID&)wGlGetProcAddress, (PVOID)hWGlGetProcAddress);
+				DetourTransactionCommit();
+			}
+
 			fnGLBindProgramARB = (GLBindProgramARB)wglGetProcAddress("glBindProgramARB");
-			fnDNInitialize();
-
-			printf("[DivaImGui] Hooking glShaderSource=%p\n", fnGLShaderSource);
-			DetourTransactionBegin();
-			DetourUpdateThread(GetCurrentThread());
-			DetourAttach(&(PVOID&)fnGLShaderSource, (PVOID)hwglShaderSource);
-			DetourTransactionCommit();
-
-			printf("[DivaImGui] Hooking glShaderSourceARB=%p\n", fnGLShaderSourceARB);
-			DetourTransactionBegin();
-			DetourUpdateThread(GetCurrentThread());
-			DetourAttach(&(PVOID&)fnGLShaderSourceARB, (PVOID)hwglShaderSourceARB);
-			DetourTransactionCommit();
-
-			printf("[DivaImGui] Hooking glProgramStringARB=%p\n", fnGLProgramStringARB);
-			DetourTransactionBegin();
-			DetourUpdateThread(GetCurrentThread());
-			DetourAttach(&(PVOID&)fnGLProgramStringARB, (PVOID)hwglProgramStringARB);
-			DetourTransactionCommit();
-
 			printf("[DivaImGui] Hooking glBindProgramARB=%p\n", fnGLBindProgramARB);
 			DetourTransactionBegin();
 			DetourUpdateThread(GetCurrentThread());
@@ -1782,6 +1832,8 @@ namespace DivaImGui
 			DetourAttach(&(PVOID&)FNGlGetError, (PVOID)hwglGetError);
 			DetourTransactionCommit();
 			shaderafthookd = true;
+
+			glewInit();
 		}
 		/*
 		if (L == "glShaderSource")
@@ -1802,8 +1854,6 @@ namespace DivaImGui
 		MH_CreateHook(ptr, hwglSwapBuffers, reinterpret_cast<void**>(&owglSwapBuffers));
 		MH_EnableHook(ptr);
 
-		glewInit();
-
 		hGetProcIDDLL = LoadLibrary(L"DivaImGuiDotNet.dll");
 
 		fnDNInitialize = (DNInitialize)GetProcAddress(HMODULE(hGetProcIDDLL), "Initialize");
@@ -1818,8 +1868,7 @@ namespace DivaImGui
 		DetourAttach(&(PVOID&)fnGLSwapBuffers, (PVOID)hwglSwapBuffers);
 		DetourTransactionCommit();
 		*/
-		const char* path = "../shadersaft/";
-		if (dirExists(path) == 1)
+
 		{
 			wGlGetProcAddress = (WGlGetProcAddress)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglGetProcAddress");
 			printf("[DivaImGui] wGlGetProcAddress=%p\n", wGlGetProcAddress);
