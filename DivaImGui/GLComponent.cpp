@@ -1221,6 +1221,7 @@ namespace DivaImGui
 			glDisable(GL_TEXTURE_2D);
 
 			glBindTexture(GL_TEXTURE_2D, 0);
+			glDisable(GL_BLEND);
 		}
 
 		ImGui::SetNextWindowBgAlpha(uiTransparency);
@@ -1863,6 +1864,7 @@ namespace DivaImGui
 				DetourUpdateThread(GetCurrentThread());
 				DetourAttach(&(PVOID&)fnGLProgramStringARB, (PVOID)hwglProgramStringARB);
 				DetourTransactionCommit();
+				shaderafthookd = true;
 			}
 			else {
 				DetourTransactionBegin();
@@ -1884,8 +1886,7 @@ namespace DivaImGui
 			DetourUpdateThread(GetCurrentThread());
 			DetourAttach(&(PVOID&)FNGlGetError, (PVOID)hwglGetError);
 			DetourTransactionCommit();
-			shaderafthookd = true;
-
+			
 			glewInit();
 		}
 		/*
