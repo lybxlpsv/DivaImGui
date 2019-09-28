@@ -22,6 +22,7 @@
 
 #include "Keyboard/Keyboard.h"
 #include "detours/detours.h"
+#include "tchar.h"
 
 namespace DivaImGui
 {
@@ -85,6 +86,11 @@ namespace DivaImGui
 
 	constexpr uint64_t FB_ASPECT_RATIO = 0x0000000140FBC2E8;
 	constexpr uint64_t UI_ASPECT_RATIO = 0x000000014CC621D0;
+
+	static int major=99;
+	static int minor=9;
+	static int build=9;
+	static int revision=9;
 
 	static int moduleEquip1 = 0;
 	static int moduleEquip2 = 0;
@@ -295,6 +301,46 @@ namespace DivaImGui
 	{
 		return ((GetFileAttributes(lpszFilename) != INVALID_FILE_ATTRIBUTES)
 			&& (GetLastError() == ERROR_FILE_NOT_FOUND));
+	}
+
+	bool GetVersionInfo(
+		LPCTSTR filename,
+		int& major,
+		int& minor,
+		int& build,
+		int& revision)
+	{
+		DWORD   verBufferSize;
+		char    verBuffer[2048];
+
+		//  Get the size of the version info block in the file
+		verBufferSize = GetFileVersionInfoSize(filename, NULL);
+		if (verBufferSize > 0 && verBufferSize <= sizeof(verBuffer))
+		{
+			//  get the version block from the file
+			if (TRUE == GetFileVersionInfo(filename, NULL, verBufferSize, verBuffer))
+			{
+				UINT length;
+				VS_FIXEDFILEINFO* verInfo = NULL;
+
+				//  Query the version information for neutral language
+				if (TRUE == VerQueryValue(
+					verBuffer,
+					_T("\\"),
+					reinterpret_cast<LPVOID*>(&verInfo),
+					&length))
+				{
+					//  Pull the version values.
+					major = HIWORD(verInfo->dwProductVersionMS);
+					minor = LOWORD(verInfo->dwProductVersionMS);
+					build = HIWORD(verInfo->dwProductVersionLS);
+					revision = LOWORD(verInfo->dwProductVersionLS);
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 
 	void RefreshShaders(HDC hdc = NULL)
@@ -1362,6 +1408,7 @@ namespace DivaImGui
 				ImGui::SliderFloat("UI Transparency", &uiTransparency, 0, 1.0);
 				ImGui::Checkbox("Framerate Overlay", &showFps);
 			}
+			ImGui::Text("DivaImGui version %d.%d%.d.%d", major, minor, build, revision);
 			if (ImGui::Button("Close")) { MainModule::showUi = false; }; ImGui::SameLine();
 			//if (ImGui::Button("Reset")) { resetGameUi = true; }; ImGui::SameLine();
 			if (ImGui::Button("About")) { showAbout = true; } ImGui::SameLine();
@@ -1854,6 +1901,10 @@ namespace DivaImGui
 
 	void GLComponent::Initialize()
 	{
+		TCHAR dllName[MAX_PATH + 1];
+		GetModuleFileName(DivaImGui::MainModule::Module, dllName, MAX_PATH);
+		GetVersionInfo(dllName, major, minor, build, revision);
+			
 		HMODULE hMod = GetModuleHandle(L"opengl32.dll");
 		void* ptr = GetProcAddress(hMod, "wglSwapBuffers");
 		MH_Initialize();
