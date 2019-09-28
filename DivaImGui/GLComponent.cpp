@@ -1408,7 +1408,7 @@ namespace DivaImGui
 				ImGui::SliderFloat("UI Transparency", &uiTransparency, 0, 1.0);
 				ImGui::Checkbox("Framerate Overlay", &showFps);
 			}
-			ImGui::Text("DivaImGui version %d.%d%.%d.%d", major, minor, build, revision);
+			ImGui::Text("DivaImGui version %d.%d.%d.%d", major, minor, build, revision);
 			if (ImGui::Button("Close")) { MainModule::showUi = false; }; ImGui::SameLine();
 			//if (ImGui::Button("Reset")) { resetGameUi = true; }; ImGui::SameLine();
 			if (ImGui::Button("About")) { showAbout = true; } ImGui::SameLine();
