@@ -1911,7 +1911,7 @@ namespace DivaImGui
 		MH_CreateHook(ptr, hwglSwapBuffers, reinterpret_cast<void**>(&owglSwapBuffers));
 		MH_EnableHook(ptr);
 
-		if (DoesFileExist(L"DivaImGuiDotNet.dll"))
+		//if (DoesFileExist(L"DivaImGuiDotNet.dll"))
 		{
 			hGetProcIDDLL = LoadLibrary(L"DivaImGuiDotNet.dll");
 
