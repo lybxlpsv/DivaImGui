@@ -279,7 +279,7 @@ namespace DivaImGui
 		VirtualProtect(address, byteCount, oldProtect, nullptr);
 	}
 
-	int dirExists(const char* path)
+	inline int dirExists(const char* path)
 	{
 		struct stat info;
 
@@ -289,6 +289,12 @@ namespace DivaImGui
 			return 1;
 		else
 			return 0;
+	}
+
+	inline bool DoesFileExist(LPCWSTR lpszFilename)
+	{
+		return ((GetFileAttributes(lpszFilename) != INVALID_FILE_ATTRIBUTES)
+			&& (GetLastError() == ERROR_FILE_NOT_FOUND));
 	}
 
 	void RefreshShaders(HDC hdc = NULL)
@@ -542,8 +548,6 @@ namespace DivaImGui
 	}
 	*/
 
-
-
 	void InitializeImGui()
 	{
 		//if (WGLExtensionSupported("WGL_EXT_swap_control"))
@@ -553,12 +557,10 @@ namespace DivaImGui
 
 			// this is another function from WGL_EXT_swap_control extension
 			wglGetSwapIntervalEXT = (PFNWGLGETSWAPINTERVALEXTPROC)wglGetProcAddress("wglGetSwapIntervalEXT");
-
-
 		}
 
 		getFrameratePD = (PDGetFramerate)GetProcAddress(GetModuleHandle(L"Render.dva"), "getFramerateLimit");
-		if (getFrameratePD != NULL)
+		if (*getFrameratePD != nullptr)
 		{
 			setFrameratePD = (PDSetFramerate)GetProcAddress(GetModuleHandle(L"Render.dva"), "setFramerateLimit");
 			//getFrameratePtrPD = (PDGetFrameratePtr)GetProcAddress(GetModuleHandle(L"Render.dva"), "getFrameratePtr");
@@ -571,7 +573,7 @@ namespace DivaImGui
 		}
 		else printf("[DivaImGui] Warning: Possibly old version of PD-Loader.\n");
 		if (!usePDFrameLimit)
-			printf("[DivaImGui] Using internal FPS Limit.\n");
+			printf("[DivaImGui] Using internal FPS Limit if enabled.\n");
 
 		DWORD oldProtect;
 		VirtualProtect((void*)AET_FRAME_DURATION_ADDRESS, sizeof(float), PAGE_EXECUTE_READWRITE, &oldProtect);
@@ -1315,7 +1317,7 @@ namespace DivaImGui
 				if (*fnReshadeRender != nullptr)
 				{
 					ImGui::Text("--- ReShade ---");
-					ImGui::SliderInt("ReShade Render Pass", &ReShadeState, 0, 1);
+					ImGui::SliderInt("ReShade Render Pass", &ReShadeState, -1, 1);
 				}
 				ImGui::Checkbox("Sprites", &enablesprites);
 				if (shaderafthookd)
@@ -1529,7 +1531,7 @@ namespace DivaImGui
 		{
 			if (DivaImGui::MainModule::fpsLimitSet != DivaImGui::MainModule::fpsLimit)
 			{
-				if (DivaImGui::MainModule::fpsLimitSet < 20)
+				if ((DivaImGui::MainModule::fpsLimitSet < 20) && (*setFrameratePD != nullptr))
 					setFrameratePD(0);
 				else
 					setFrameratePD(DivaImGui::MainModule::fpsLimitSet);
@@ -1790,7 +1792,7 @@ namespace DivaImGui
 		{
 			wdetoursf = true;
 			const char* path = "shadersaft/";
-			if (dirExists(path) == 1) {
+			if ((dirExists(path) == 1) && (*fnDNInitialize != nullptr)) {
 				fnGLShaderSource = (GLShaderSource)wglGetProcAddress("glShaderSource");
 				fnGLShaderSourceARB = (GLShaderSourceARB)wglGetProcAddress("glShaderSourceARB");
 				fnGLProgramStringARB = (GLProgramStringARB)wglGetProcAddress("glProgramStringARB");
@@ -1858,11 +1860,15 @@ namespace DivaImGui
 		MH_CreateHook(ptr, hwglSwapBuffers, reinterpret_cast<void**>(&owglSwapBuffers));
 		MH_EnableHook(ptr);
 
-		hGetProcIDDLL = LoadLibrary(L"DivaImGuiDotNet.dll");
+		if (DoesFileExist(L"DivaImGuiDotNet.dll"))
+		{
+			hGetProcIDDLL = LoadLibrary(L"DivaImGuiDotNet.dll");
 
-		fnDNInitialize = (DNInitialize)GetProcAddress(HMODULE(hGetProcIDDLL), "Initialize");
-		fnDNProcessShader = (DNProcessShader)GetProcAddress(HMODULE(hGetProcIDDLL), "ProcessShader");
-		fnDNRefreshShaders = (DNRefreshShaders)GetProcAddress(HMODULE(hGetProcIDDLL), "RefreshShaders");
+			fnDNInitialize = (DNInitialize)GetProcAddress(HMODULE(hGetProcIDDLL), "Initialize");
+			fnDNProcessShader = (DNProcessShader)GetProcAddress(HMODULE(hGetProcIDDLL), "ProcessShader");
+			fnDNRefreshShaders = (DNRefreshShaders)GetProcAddress(HMODULE(hGetProcIDDLL), "RefreshShaders");
+		}
+
 		//fnDNInitialize();
 		/*
 		fnGLSwapBuffers = (GLSwapBuffers)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglSwapBuffers");

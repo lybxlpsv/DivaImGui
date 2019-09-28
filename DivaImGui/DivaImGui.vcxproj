@@ -222,6 +222,9 @@
     <ClCompile Include="Utilities\Operations.cpp" />
     <ClCompile Include="Utilities\Stopwatch.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="DivaImGui.rc" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>
