@@ -781,6 +781,27 @@ namespace DivaImGui
 			res_scale[i] = -1.0f;
 		}
 
+		std::ifstream f("plugins\\res_scale.csv");
+		if (f.good())
+		{
+			aria::csv::CsvParser parser(f);
+			int rowNum = 0;
+			int fieldNum = 0;
+			int currentPvId = 0;
+			for (auto& row : parser) {
+				currentPvId = 999;
+				for (auto& field : row) {
+					if (fieldNum == 0)
+						currentPvId = std::stoi(field);
+					if (fieldNum == 1)
+						res_scale[currentPvId] = std::stof(field);
+					fieldNum++;
+				}
+				fieldNum = 0;
+				rowNum++;
+			}
+		}
+
 		originalResX = *(int*)FB_RESOLUTION_HEIGHT_ADDRESS;
 		originalResY = *(int*)FB_RESOLUTION_WIDTH_ADDRESS;
 
@@ -1903,27 +1924,6 @@ namespace DivaImGui
 		MH_Initialize();
 		MH_CreateHook(ptr, hwglSwapBuffers, reinterpret_cast<void**>(&owglSwapBuffers));
 		MH_EnableHook(ptr);
-
-		std::ifstream f("res_scale.csv");
-		if (f.good())
-		{
-			aria::csv::CsvParser parser(f);
-			int rowNum = 0;
-			int fieldNum = 0;
-			int currentPvId = 0;
-			for (auto& row : parser) {
-				currentPvId = 999;
-				for (auto& field : row) {
-					if (fieldNum == 0)
-						currentPvId = std::stoi(field);
-					if (fieldNum == 1)
-						res_scale[currentPvId] = std::stof(field);
-					fieldNum++;
-				}
-				fieldNum = 0;
-				rowNum++;
-			}
-		}
 
 		//if (DoesFileExist(L"DivaImGuiDotNet.dll"))
 		{
