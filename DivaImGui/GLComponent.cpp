@@ -4,6 +4,10 @@
 
 #include <stdio.h>
 
+#include <intrin.h>
+
+#pragma intrinsic(_ReturnAddress)
+
 #include <chrono>
 #include <thread>
 
@@ -50,7 +54,8 @@ namespace DivaImGui
 	typedef int(__stdcall* DNRefreshShaders)(void);
 	typedef int(__stdcall* DNProcessShader)(int, int, int, int, int);
 	typedef int(__stdcall* ReshadeRender)();
-	typedef int(__stdcall* FUN_140440a00)(long long, int, GLuint);
+	typedef bool(__stdcall* WGLDXUnlockObjectsNV)(HANDLE, GLint, HANDLE*);
+	typedef bool(__stdcall* WGLDXlockObjectsNV)(HANDLE, GLint, HANDLE*);
 	//typedef std::chrono::nanoseconds*(__stdcall* PDGetFrameratePtr)(void);
 	// Function pointer
 	GLSwapBuffers fnGLSwapBuffers;
@@ -67,7 +72,8 @@ namespace DivaImGui
 	GLBindTexture fnGLBindTexture;
 	GLGetError FNGlGetError;
 	ReshadeRender fnReshadeRender;
-	FUN_140440a00 f140440a00;
+	WGLDXUnlockObjectsNV fnWGLDXUnlockObjectsNV;
+	WGLDXlockObjectsNV fnWGLDXlockObjectsNV;
 	//PDGetFrameratePtr getFrameratePtrPD;
 
 	bool usePDFrameLimit = false;
@@ -88,10 +94,10 @@ namespace DivaImGui
 	constexpr uint64_t FB_ASPECT_RATIO = 0x0000000140FBC2E8;
 	constexpr uint64_t UI_ASPECT_RATIO = 0x000000014CC621D0;
 
-	static int major=99;
-	static int minor=9;
-	static int build=9;
-	static int revision=9;
+	static int major = 99;
+	static int minor = 9;
+	static int build = 9;
+	static int revision = 9;
 
 	static int moduleEquip1 = 0;
 	static int moduleEquip2 = 0;
@@ -1684,6 +1690,7 @@ namespace DivaImGui
 	{
 		if (CatchAETRenderPass)
 		{
+			//printf("CatchAETRenderPass %p\n", _ReturnAddress());
 			CatchAETRenderPass = false;
 			if (ReShadeState == 0)
 				if (*fnReshadeRender != nullptr)
@@ -1812,6 +1819,54 @@ namespace DivaImGui
 
 	static bool wdetoursf = false;
 
+	bool catchtexid = false;
+
+	BOOL __stdcall hwglDXUnlockObjectsNV(HANDLE hDevice, GLint count, HANDLE* hObjects)
+	{
+		catchtexid = true;
+		//printf("hwglDXUnlockObjectsNV %p\n", _ReturnAddress());
+		return fnWGLDXUnlockObjectsNV(hDevice, count, hObjects);
+	}
+
+	BOOL __stdcall hWGLDXlockObjectsNV(HANDLE hDevice, GLint count, HANDLE* hObjects)
+	{
+		catchtexid = false;
+		return fnWGLDXlockObjectsNV(hDevice, count, hObjects);
+	}
+
+	static GLuint movietex[100];
+	static int moviectr = 0;
+
+	void __stdcall hwglBindTexture(GLenum format, GLuint id)
+	{
+		if (format == GL_TEXTURE_2D)
+		{
+			if (catchtexid)
+			{
+				if (id != 0)
+				{
+					printf("catch movie tex %d\n", id);
+					//printf("ret %p\n", _ReturnAddress());
+					movietex[moviectr] = id;
+					moviectr++;
+					printf("ctr = %d\n", moviectr);
+				}
+
+				recttexture = id;
+				catchtexid = false;
+			}
+			for (int ctr = 0; ctr < moviectr; ctr++)
+			{
+				if (id == movietex[ctr])
+				{
+					//printf("rend %p\n", _ReturnAddress());
+					recttexture = movietex[ctr];
+				}
+			}
+		}
+		return fnGLBindTexture(format, id);
+	}
+
 	PROC __stdcall hWGlGetProcAddress(LPCSTR L)
 	{
 		PROC leproc = wGlGetProcAddress(L);
@@ -1871,7 +1926,35 @@ namespace DivaImGui
 			DetourUpdateThread(GetCurrentThread());
 			DetourAttach(&(PVOID&)FNGlGetError, (PVOID)hwglGetError);
 			DetourTransactionCommit();
-			
+
+			/*
+			{
+				fnWGLDXUnlockObjectsNV = (WGLDXUnlockObjectsNV)wglGetProcAddress("wglDXUnlockObjectsNV");
+				printf("[DivaImGui] wglDXUnlockObjectsNV=%p\n", fnWGLDXUnlockObjectsNV);
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourAttach(&(PVOID&)fnWGLDXUnlockObjectsNV, (PVOID)hwglDXUnlockObjectsNV);
+				DetourTransactionCommit();
+			}
+
+			{
+				fnGLBindTexture = *glBindTexture;
+				printf("[DivaImGui] fnGLBindTexture=%p\n", glBindTexture);
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourAttach(&(PVOID&)fnGLBindTexture, (PVOID)hwglBindTexture);
+				DetourTransactionCommit();
+			}
+
+			{
+				fnWGLDXlockObjectsNV = (WGLDXlockObjectsNV)wglGetProcAddress("wglDXLockObjectsNV");
+				printf("[DivaImGui] wglDXLockObjectsNV=%p\n", fnWGLDXlockObjectsNV);
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourAttach(&(PVOID&)fnWGLDXlockObjectsNV, (PVOID)hWGLDXlockObjectsNV);
+				DetourTransactionCommit();
+			}
+			*/
 			glewInit();
 		}
 		/*
@@ -1885,19 +1968,13 @@ namespace DivaImGui
 
 	static HINSTANCE hGetProcIDDLL;
 
-	void __stdcall FUN140440a00(long long param_1, int param_2, GLuint param_3)
-	{
-		printf("[DivaImGui] CatchARB!%d\n", param_3);
-		f140440a00(param_1, param_2, param_3);
-		return;
-	}
 
 	void GLComponent::Initialize()
 	{
 		TCHAR dllName[MAX_PATH + 1];
 		GetModuleFileName(DivaImGui::MainModule::Module, dllName, MAX_PATH);
 		GetVersionInfo(dllName, major, minor, build, revision);
-			
+
 		HMODULE hMod = GetModuleHandle(L"opengl32.dll");
 		void* ptr = GetProcAddress(hMod, "wglSwapBuffers");
 		MH_Initialize();
