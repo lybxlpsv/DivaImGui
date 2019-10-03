@@ -1547,6 +1547,15 @@ namespace DivaImGui
 			ImGui::Text("BesuBaru");
 			ImGui::Text("Uses third party libraries :");
 			ImGui::Text("ImGui");
+			if (*fnReshadeRender != nullptr)
+				ImGui::Text("ReShade");
+			if (*fnDNInitialize != nullptr)
+			{
+				ImGui::Text("NvAPIWrapper (falahati)");
+				ImGui::Text("csv-parser (AriaFallah)");
+				ImGui::Text("3F/DllExport");
+			}
+			ImGui::Text("GLEW");
 			ImGui::Text("Detours");
 			ImGui::Text("MinHook (Tsuda Kageyu)");
 			ImGui::Text("Hacker Disassembler Engine 32/64 C (Vyacheslav Patkov)");
