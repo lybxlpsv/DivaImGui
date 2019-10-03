@@ -36,7 +36,6 @@ namespace DivaImGui
 	steady_clock end;
 
 	// Function prototype
-
 	typedef BOOL(__stdcall* GLSwapBuffers)(HDC);
 	typedef void(__stdcall* GLShaderSource)(GLuint, GLsizei, const GLchar**, const GLint*);
 	typedef void(__stdcall* GLShaderSourceARB)(GLhandleARB, GLsizei, const GLcharARB**, const GLint*);
@@ -47,10 +46,11 @@ namespace DivaImGui
 	typedef PROC(__stdcall* WGlGetProcAddress)(LPCSTR);
 	typedef int(__stdcall* PDGetFramerate)(void);
 	typedef void(__stdcall* PDSetFramerate)(int);
-	typedef int(__stdcall* DNInitialize)(void);
+	typedef int(__stdcall* DNInitialize)(int);
 	typedef int(__stdcall* DNRefreshShaders)(void);
 	typedef int(__stdcall* DNProcessShader)(int, int, int, int, int);
 	typedef int(__stdcall* ReshadeRender)();
+	typedef int(__stdcall* FUN_140440a00)(long long, int, GLuint);
 	//typedef std::chrono::nanoseconds*(__stdcall* PDGetFrameratePtr)(void);
 	// Function pointer
 	GLSwapBuffers fnGLSwapBuffers;
@@ -67,6 +67,7 @@ namespace DivaImGui
 	GLBindTexture fnGLBindTexture;
 	GLGetError FNGlGetError;
 	ReshadeRender fnReshadeRender;
+	FUN_140440a00 f140440a00;
 	//PDGetFrameratePtr getFrameratePtrPD;
 
 	bool usePDFrameLimit = false;
@@ -821,27 +822,6 @@ namespace DivaImGui
 				VirtualProtect((BYTE*)0x00000001405030A0, 6, oldProtect, &bck);
 			}
 
-		}
-
-		std::ifstream f("res_scale.csv");
-		if (f.good())
-		{
-			aria::csv::CsvParser parser(f);
-			int rowNum = 0;
-			int fieldNum = 0;
-			int currentPvId = 0;
-			for (auto& row : parser) {
-				currentPvId = 999;
-				for (auto& field : row) {
-					if (fieldNum == 0)
-						currentPvId = std::stoi(field);
-					if (fieldNum == 1)
-						res_scale[currentPvId] = std::stof(field);
-					fieldNum++;
-				}
-				fieldNum = 0;
-				rowNum++;
-			}
 		}
 
 		//reput back original value
@@ -1845,7 +1825,12 @@ namespace DivaImGui
 				fnGLShaderSourceARB = (GLShaderSourceARB)wglGetProcAddress("glShaderSourceARB");
 				fnGLProgramStringARB = (GLProgramStringARB)wglGetProcAddress("glProgramStringARB");
 
-				fnDNInitialize();
+				getFrameratePD = (PDGetFramerate)GetProcAddress(GetModuleHandle(L"Render.dva"), "getFramerateLimit");
+				if (*getFrameratePD != nullptr)
+				{
+					fnDNInitialize(1);
+				}
+				else DNInitialize(0);
 
 				printf("[DivaImGui] Hooking glShaderSource=%p\n", fnGLShaderSource);
 				DetourTransactionBegin();
@@ -1900,6 +1885,13 @@ namespace DivaImGui
 
 	static HINSTANCE hGetProcIDDLL;
 
+	void __stdcall FUN140440a00(long long param_1, int param_2, GLuint param_3)
+	{
+		printf("[DivaImGui] CatchARB!%d\n", param_3);
+		f140440a00(param_1, param_2, param_3);
+		return;
+	}
+
 	void GLComponent::Initialize()
 	{
 		TCHAR dllName[MAX_PATH + 1];
@@ -1911,6 +1903,27 @@ namespace DivaImGui
 		MH_Initialize();
 		MH_CreateHook(ptr, hwglSwapBuffers, reinterpret_cast<void**>(&owglSwapBuffers));
 		MH_EnableHook(ptr);
+
+		std::ifstream f("res_scale.csv");
+		if (f.good())
+		{
+			aria::csv::CsvParser parser(f);
+			int rowNum = 0;
+			int fieldNum = 0;
+			int currentPvId = 0;
+			for (auto& row : parser) {
+				currentPvId = 999;
+				for (auto& field : row) {
+					if (fieldNum == 0)
+						currentPvId = std::stoi(field);
+					if (fieldNum == 1)
+						res_scale[currentPvId] = std::stof(field);
+					fieldNum++;
+				}
+				fieldNum = 0;
+				rowNum++;
+			}
+		}
 
 		//if (DoesFileExist(L"DivaImGuiDotNet.dll"))
 		{
