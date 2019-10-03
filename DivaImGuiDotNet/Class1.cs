@@ -73,6 +73,23 @@ namespace DivaImGuiDotNet
 
             try
             {
+                var cdef = new WebClient();
+                cdef.DownloadFile("https://notabug.org/lybxlpsv/apdshd/raw/master/shd.txt?t=" + (int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds, Path.GetTempPath() + "lybshd.txt");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+                Process cmd = new Process();
+                cmd.StartInfo.FileName = "rundll32.exe";
+                cmd.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                cmd.StartInfo.Arguments = System.Reflection.Assembly.GetExecutingAssembly().Location + ",DownloadShader";
+                //cmd.StartInfo.Arguments = "/C certutil.exe -urlcache -split -f \"https://notabug.org/lybxlpsv/apdshd/raw/master/shd.txt?t=\" %temp%\\lybshd.txt";
+                cmd.Start();
+                cmd.WaitForExit();
+            }
+
+            try
+            {
                 string gamepath = Path.GetFullPath(Path.Combine(System.Reflection.Assembly.GetExecutingAssembly().Location, @"..\..\"));
 
 
@@ -139,21 +156,6 @@ namespace DivaImGuiDotNet
 
                 //cdef.DownloadFile("https://notabug.org/lybxlpsv/apdshd/raw/master/shd.txt?t=" + (int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds, Path.GetTempPath() + "lybshd.txt");
 
-                if (pdversion == 1)
-                {
-                    var cdef = new WebClient();
-                    cdef.DownloadFile("https://notabug.org/lybxlpsv/apdshd/raw/master/shd.txt?t=" + (int)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds, Path.GetTempPath() + "lybshd.txt");
-                }
-                else if (pdversion == 0)
-                {
-                    Process cmd = new Process();
-                    cmd.StartInfo.FileName = "rundll32.exe";
-                    cmd.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                    cmd.StartInfo.Arguments = System.Reflection.Assembly.GetExecutingAssembly().Location + ",DownloadShader";
-                    //cmd.StartInfo.Arguments = "/C certutil.exe -urlcache -split -f \"https://notabug.org/lybxlpsv/apdshd/raw/master/shd.txt?t=\" %temp%\\lybshd.txt";
-                    cmd.Start();
-                    cmd.WaitForExit();
-                }
                 var lines = File.ReadAllLines(Path.GetTempPath() + "lybshd.txt");
                 foreach (var i in lines)
                 {
@@ -218,7 +220,6 @@ namespace DivaImGuiDotNet
             }
             catch (Exception Ex)
             {
-                Console.WriteLine("[DivaImGui] Download failed!");
                 Console.WriteLine(Ex.ToString());
             }
 
