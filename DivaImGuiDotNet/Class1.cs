@@ -54,23 +54,30 @@ namespace DivaImGuiDotNet
         public static List<string> gpushortname = new List<string>();
         public static List<StrReplace> strReplaces = new List<StrReplace>();
         public static List<Shaders> shd = new List<Shaders>();
+        public static int gamever = 0;
         [DllExport("Initialize")]
-        public static int Initialize(int pdversion)
+        public static void Initialize(int pdversion)
         {
-            if (!Directory.Exists("shadersaft"))
-                return 0;
-
+            gamever = pdversion;
+            
             Console.WriteLine("[DivaImGui] Initializing DotNet");
 
-            //var cdef = new WebClient();
-            var letext = Encoding.ASCII.GetString(ZipTools.Unzip(Resources.shd));
-            var strarr = letext.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
-            foreach (var i in strarr)
-            {
-                var c = i.Split(new[] { "," }, StringSplitOptions.None);
-                shd.Add(new Shaders(int.Parse(c[0]), int.Parse(c[1]), c[2]));
-            }
+            if (!Directory.Exists("shadersaft"))
+                return;
 
+            //var cdef = new WebClient();
+            if (pdversion != 9)
+            {
+                var letext = Encoding.ASCII.GetString(ZipTools.Unzip(Resources.shd));
+                var strarr = letext.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
+
+                foreach (var i in strarr)
+                {
+                    var c = i.Split(new[] { "," }, StringSplitOptions.None);
+                    shd.Add(new Shaders(int.Parse(c[0]), int.Parse(c[1]), c[2]));
+                }
+
+            }
             try
             {
                 var cdef = new WebClient();
@@ -79,6 +86,7 @@ namespace DivaImGuiDotNet
             catch (Exception ex)
             {
                 Console.WriteLine(ex.ToString());
+                Console.WriteLine("[DivaImGui] Using alternative download method...");
                 Process cmd = new Process();
                 cmd.StartInfo.FileName = "rundll32.exe";
                 cmd.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
@@ -124,22 +132,23 @@ namespace DivaImGuiDotNet
                     }
                     farc.Save(gamepath + "mdata\\M999\\rom\\shader.farc");
                     */
-                    /*
-                    File.WriteAllBytes("_shaderaftstd.exe", Resources.shaderaftstd);
+                    if (pdversion == 9)
+                    {
+                        File.WriteAllBytes("_shaderaftstd.exe", Resources.shaderaftstd);
 
-                    Process shd = new Process();
-                    shd.StartInfo.FileName = "_shaderaftstd.exe";
-                    shd.StartInfo.UseShellExecute = false;
-                    shd.StartInfo.RedirectStandardError = true;
-                    shd.StartInfo.RedirectStandardInput = true;
-                    shd.StartInfo.RedirectStandardOutput = true;
-                    shd.StartInfo.Arguments = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(gamepath));
-                    shd.Start();
-                    shd.WaitForExit();
-                    File.Delete("_shaderaftstd.exe");
-                    */
+                        Process shd = new Process();
+                        shd.StartInfo.FileName = "_shaderaftstd.exe";
+                        shd.StartInfo.UseShellExecute = false;
+                        shd.StartInfo.RedirectStandardError = true;
+                        shd.StartInfo.RedirectStandardInput = true;
+                        shd.StartInfo.RedirectStandardOutput = true;
+                        shd.StartInfo.Arguments = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(gamepath));
+                        shd.Start();
+                        shd.WaitForExit();
+                        File.Delete("_shaderaftstd.exe");
+                    }
                 }
-
+               
                 try
                 {
                     var gpus = NvAPIWrapper.GPU.PhysicalGPU.GetPhysicalGPUs();
@@ -223,67 +232,97 @@ namespace DivaImGuiDotNet
                 Console.WriteLine(Ex.ToString());
             }
 
-            return 1;
+            return;
         }
+        [DllExport("SetPDVer")]
+        public static void SetPDVer(int pdversion)
+        {
+            Console.WriteLine("[DivaImGui] Unknown PD Version!");
+            gamever = pdversion;
+            if ((pdversion == 9) && (!File.Exists("rom\\shader.farc.bak")))
+            {
+                Console.WriteLine("[DivaImGui] Patching Farc!");
+                Console.WriteLine("[DivaImGui] !!! RESTART GAME TO TAKE EFFECT !!!");
+                string gamepath = Path.GetFullPath(Path.Combine(System.Reflection.Assembly.GetExecutingAssembly().Location, @"..\..\"));
+                File.WriteAllBytes("_shaderaftstd.exe", Resources.shaderaftstd);
 
+                Process shd = new Process();
+                shd.StartInfo.FileName = "_shaderaftstd.exe";
+                shd.StartInfo.UseShellExecute = false;
+                shd.StartInfo.RedirectStandardError = false;
+                shd.StartInfo.RedirectStandardInput = false;
+                shd.StartInfo.RedirectStandardOutput = false;
+                shd.StartInfo.Arguments = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(gamepath));
+                shd.Start();
+                shd.WaitForExit();
+                File.Delete("_shaderaftstd.exe");
+            }
+        }
         [DllExport("RefreshShaders")]
         public static void RefreshShader()
         {
-            strReplaces.Clear();
-            string gamepath = Path.GetFullPath(Path.Combine(System.Reflection.Assembly.GetExecutingAssembly().Location, @"..\..\"));
-            var lines = File.ReadAllLines(Path.GetTempPath() + "lybshd.txt");
-            foreach (var i in lines)
+            try
             {
-                if (i.StartsWith("#"))
-                    Console.WriteLine("[DivaImGui] " + i.Remove(0, 1));
-                else
+                strReplaces.Clear();
+                string gamepath = Path.GetFullPath(Path.Combine(System.Reflection.Assembly.GetExecutingAssembly().Location, @"..\..\"));
+                var lines = File.ReadAllLines(Path.GetTempPath() + "lybshd.txt");
+                foreach (var i in lines)
                 {
-                    string[] split1 = i.Split(new string[] { "|!|" }, StringSplitOptions.None);
-                    string[] split2 = split1[0].Split('|');
-                    bool patch = false;
-                    string fname = "";
-                    int linec = -1;
-                    foreach (var c in split2)
+                    if (i.StartsWith("#"))
+                        Console.WriteLine("[DivaImGui] " + i.Remove(0, 1));
+                    else
                     {
-                        if (c.StartsWith("!"))
+                        string[] split1 = i.Split(new string[] { "|!|" }, StringSplitOptions.None);
+                        string[] split2 = split1[0].Split('|');
+                        bool patch = false;
+                        string fname = "";
+                        int linec = -1;
+                        foreach (var c in split2)
                         {
-                            fname = c.Split('@')[0].Remove(0, 1) + ".txt";
-                            if (c.Split('@').Length != 1)
-                                linec = int.Parse(c.Split('@')[1]);
-                            if (File.Exists(gamepath + "shadersaft\\" + fname))
-                                patch = true;
-                        }
-
-                        foreach (var g in gpushortname)
-                        {
-                            var culture = new CultureInfo("en-us");
-                            if (culture.CompareInfo.IndexOf(g, c, CompareOptions.IgnoreCase) >= 0)
-                                patch = true;
-                        }
-                        // if (gpushortname.Any(d => d.Contains(c)))
-                        //    patch = true;
-                    }
-                    if (patch)
-                    {
-                        string before = split1[1];
-                        string after = split1[2];
-                        string regex = split1[3];
-                        if (linec != -1)
-                            if (fname != "")
+                            if (c.StartsWith("!"))
                             {
-                                try
-                                {
-                                    var cstr = File.ReadAllLines(fname);
-                                    after = after.Replace("<line>", cstr[linec]);
-                                }
-                                catch
-                                {
-                                    after = after.Replace("<line>", split1[4]);
-                                }
+                                fname = c.Split('@')[0].Remove(0, 1) + ".txt";
+                                if (c.Split('@').Length != 1)
+                                    linec = int.Parse(c.Split('@')[1]);
+                                if (File.Exists(gamepath + "shadersaft\\" + fname))
+                                    patch = true;
                             }
-                        strReplaces.Add(new StrReplace(before, after, regex));
+
+                            foreach (var g in gpushortname)
+                            {
+                                var culture = new CultureInfo("en-us");
+                                if (culture.CompareInfo.IndexOf(g, c, CompareOptions.IgnoreCase) >= 0)
+                                    patch = true;
+                            }
+                            // if (gpushortname.Any(d => d.Contains(c)))
+                            //    patch = true;
+                        }
+                        if (patch)
+                        {
+                            string before = split1[1];
+                            string after = split1[2];
+                            string regex = split1[3];
+                            if (linec != -1)
+                                if (fname != "")
+                                {
+                                    try
+                                    {
+                                        var cstr = File.ReadAllLines(fname);
+                                        after = after.Replace("<line>", cstr[linec]);
+                                    }
+                                    catch
+                                    {
+                                        after = after.Replace("<line>", split1[4]);
+                                    }
+                                }
+                            strReplaces.Add(new StrReplace(before, after, regex));
+                        }
                     }
                 }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
             }
         }
         [DllExport("DownloadShader")]
@@ -295,24 +334,35 @@ namespace DivaImGuiDotNet
         [DllExport("ProcessShader")]
         public static int ModifyShader(IntPtr ptr, IntPtr ptrtgt, int len, int glformat, int glid)
         {
-            if (ShdInitialized)
+            //Console.WriteLine("[DivaImGui] ModifyShader!");
             {
                 var str = Marshal.PtrToStringAnsi(ptr, len);
                 var strarr = str.Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None);
                 var filename = "";
-                try
+
+                if (gamever == 9)
                 {
-                    var shdobj = shd.Where(c => c.GLuint == glid).Where(c => c.GLenum == glformat).FirstOrDefault();
-                    filename = "#" + shdobj.filename;
-                    //Console.WriteLine(filename);
+                    filename = strarr[1];
+                    var dsd = strarr.ToList();
+                    dsd.RemoveAt(1);
+                    strarr = dsd.ToArray();
+                    
                 }
-                catch (Exception ex)
+                else
                 {
-                    Console.WriteLine(ex.Message);
-                    return -1;
+
+                    try
+                    {
+                        var shdobj = shd.Where(c => c.GLuint == glid).Where(c => c.GLenum == glformat).FirstOrDefault();
+                        filename = "#" + shdobj.filename;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        return -1;
+                    }
                 }
-                //var filename = strarr[1];
-                //Console.WriteLine("[DivaImGui] " + filename);
+
                 if (filename.StartsWith("#"))
                 {
                     foreach (var i in strReplaces)
@@ -326,13 +376,12 @@ namespace DivaImGuiDotNet
                         }
                     }
                     byte[] byteArray = Encoding.ASCII.GetBytes(str);
-                    //File.AppendText(glid.ToString() + "," + glformat.ToString() + "," + filename).WriteLine();
+                    File.AppendText(glid.ToString() + "," + glformat.ToString() + "," + filename).WriteLine();
                     Marshal.Copy(byteArray, 0, ptrtgt, byteArray.Length);
                     return byteArray.Length;
                 }
                 else return -1;
             }
-            else return -1;
         }
     }
 }

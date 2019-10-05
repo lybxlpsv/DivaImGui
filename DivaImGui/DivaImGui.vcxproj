@@ -162,7 +162,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;glew32.lib;libMinHook-x64-v141-mdd.lib;XINPUT9_1_0.LIB;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;glew32.lib;version.lib;XINPUT9_1_0.LIB;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>Xinput.h</IgnoreSpecificDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>
@@ -181,6 +181,8 @@
     <ClInclude Include="FileSystem\TextFile.h" />
     <ClInclude Include="GLComponent.h" />
     <ClInclude Include="GLComponent101.h" />
+    <ClInclude Include="GLComponentLight.h" />
+    <ClInclude Include="GLHook\GLHook.h" />
     <ClInclude Include="Keyboard\IInputDevice.h" />
     <ClInclude Include="Keyboard\Keyboard.h" />
     <ClInclude Include="Keyboard\KeyboardState.h" />
@@ -195,6 +197,7 @@
     <ClCompile Include="..\Depedencies\detours\detours.cpp" />
     <ClCompile Include="..\Depedencies\detours\disasm.cpp" />
     <ClCompile Include="..\Depedencies\detours\disolx64.cpp" />
+    <ClCompile Include="..\Depedencies\detours\disolx86.cpp" />
     <ClCompile Include="..\Depedencies\detours\image.cpp" />
     <ClCompile Include="..\Depedencies\detours\modules.cpp" />
     <ClCompile Include="..\Depedencies\GL\glew.c" />
@@ -210,6 +213,8 @@
     <ClCompile Include="FileSystem\TextFile.cpp" />
     <ClCompile Include="GLComponent.cpp" />
     <ClCompile Include="GLComponent101.cpp" />
+    <ClCompile Include="GLComponentLight.cpp" />
+    <ClCompile Include="GLHook\GLHook.cpp" />
     <ClCompile Include="Keyboard\Keyboard.cpp" />
     <ClCompile Include="Keyboard\KeyboardState.cpp" />
     <ClCompile Include="MainModule.cpp" />

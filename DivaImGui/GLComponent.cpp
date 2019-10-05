@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "GLComponent.h"
-#include <MinHook.h>
 
 #include <stdio.h>
 
@@ -50,7 +49,7 @@ namespace DivaImGui
 	typedef PROC(__stdcall* WGlGetProcAddress)(LPCSTR);
 	typedef int(__stdcall* PDGetFramerate)(void);
 	typedef void(__stdcall* PDSetFramerate)(int);
-	typedef int(__stdcall* DNInitialize)(int);
+	typedef void	(__stdcall* DNInitialize)(int);
 	typedef int(__stdcall* DNRefreshShaders)(void);
 	typedef int(__stdcall* DNProcessShader)(int, int, int, int, int);
 	typedef int(__stdcall* ReshadeRender)();
@@ -404,7 +403,7 @@ namespace DivaImGui
 
 						ImGui::Render();
 						ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
-						owglSwapBuffers(hdc);
+						fnGLSwapBuffers(hdc);
 					}
 				}
 				//
@@ -1677,7 +1676,7 @@ namespace DivaImGui
 					}
 				}
 		RenderGUI();
-		bool result = owglSwapBuffers(hDc);
+		bool result = fnGLSwapBuffers(hDc);
 		if (refreshshd == 1)
 		{
 			RefreshShaders(hDc);
@@ -2005,11 +2004,13 @@ namespace DivaImGui
 		GetModuleFileName(DivaImGui::MainModule::Module, dllName, MAX_PATH);
 		GetVersionInfo(dllName, major, minor, build, revision);
 
+		/*
 		HMODULE hMod = GetModuleHandle(L"opengl32.dll");
 		void* ptr = GetProcAddress(hMod, "wglSwapBuffers");
 		MH_Initialize();
 		MH_CreateHook(ptr, hwglSwapBuffers, reinterpret_cast<void**>(&owglSwapBuffers));
 		MH_EnableHook(ptr);
+		*/
 
 		//if (DoesFileExist(L"DivaImGuiDotNet.dll"))
 		{
@@ -2021,15 +2022,14 @@ namespace DivaImGui
 		}
 
 		//fnDNInitialize();
-		/*
+		
 		fnGLSwapBuffers = (GLSwapBuffers)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglSwapBuffers");
 		printf("[DivaImGui] glSwapBuffers=%p\n", fnGLSwapBuffers);
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach(&(PVOID&)fnGLSwapBuffers, (PVOID)hwglSwapBuffers);
 		DetourTransactionCommit();
-		*/
-
+		
 		{
 			wGlGetProcAddress = (WGlGetProcAddress)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglGetProcAddress");
 			printf("[DivaImGui] wGlGetProcAddress=%p\n", wGlGetProcAddress);

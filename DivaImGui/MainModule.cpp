@@ -2,6 +2,7 @@
 #include <filesystem>
 #include "GLComponent.h"
 #include "GLComponent101.h"
+#include "GLComponentLight.h"
 #include "FileSystem/ConfigFile.h"
 
 namespace DivaImGui
@@ -11,6 +12,7 @@ namespace DivaImGui
 	std::string *MainModule::moduleDirectory;
 
 	const wchar_t* MainModule::DivaWindowName = L"Hatsune Miku Project DIVA Arcade Future Tone";
+	const wchar_t* MainModule::ODivaWindowName = L"Project DIVA Arcade";
 	const wchar_t* MainModule::GlutDefaultName = L"GLUT";
 	const wchar_t* MainModule::freeGlutDefaultName = L"FREEGLUT";
 
@@ -22,8 +24,9 @@ namespace DivaImGui
 	bool MainModule::inputDisable = false;
 	DivaImGui::GLComponent MainModule::glcomp;
 	DivaImGui::V101::GLComponent101 MainModule::glcomp101;
+	DivaImGui::VLight::GLComponentLight MainModule::glcomplight;
 	bool MainModule::showUi = false;
-
+	
 	void MainModule::initializeglcomp()
 	{
 		const std::string RESOLUTION_CONFIG_FILE_NAME = "graphics.ini";
@@ -36,26 +39,36 @@ namespace DivaImGui
 		}
 
 		if (success) {
-			std::string v101 = "1.01";
-
+			std::string aftv101 = "1.01";
+			std::string universal = "0.00";
+			std::string aftv701 = "7.01";
 			std::string* value;
 			if (resolutionConfig.TryGetValue("version", &value))
 			{
 				int version = std::stoi(*value);
 
-				if (*value == v101)
+				if (*value == aftv101)
 				{
 					printf("[DivaImGui] AFT v1.01\n");
 					glcomp101.Initialize();
 				}
-				else {
+				if (*value == universal)
+				{
+					printf("[DivaImGui] Universal Mode\n");
+					glcomplight.Initialize();
+				}
+				if (*value == aftv701) {
 					printf("[DivaImGui] AFT v7.10\n");
+					DWORD oldProtect, bck;
+					VirtualProtect((BYTE*)0x0000000140626C29, 2, PAGE_EXECUTE_READWRITE, &oldProtect);
+					*((BYTE*)0x0000000140626C29 + 0) = 0x48;
+					*((BYTE*)0x0000000140626C29 + 1) = 0xE9;
+					VirtualProtect((BYTE*)0x0000000140626C29, 2, oldProtect, &bck);
 					glcomp.Initialize();
 				}
 			}
 			else {
-				printf("[DivaImGui] AFT v7.10\n");
-				glcomp.Initialize();
+				printf("[DivaImGui] Unknown Version!\n");
 			}
 		}
 	}

@@ -21,11 +21,7 @@ BOOL APIENTRY DllMain( HMODULE hModule,
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
-		DWORD oldProtect, bck;
-		VirtualProtect((BYTE*)0x0000000140626C29, 2, PAGE_EXECUTE_READWRITE, &oldProtect);
-		*((BYTE*)0x0000000140626C29 + 0) = 0x48;
-		*((BYTE*)0x0000000140626C29 + 1) = 0xE9;
-		VirtualProtect((BYTE*)0x0000000140626C29, 2, oldProtect, &bck);
+		
 
 		DivaImGui::MainModule::Module = hModule;
 		AttachImGui();

@@ -63,6 +63,16 @@ namespace DivaImGuiDotNet.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
+        internal static byte[] shaderaftstd {
+            get {
+                object obj = ResourceManager.GetObject("shaderaftstd", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
         internal static byte[] shd {
             get {
                 object obj = ResourceManager.GetObject("shd", resourceCulture);
