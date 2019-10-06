@@ -2030,6 +2030,7 @@ namespace DivaImGui
 		DetourAttach(&(PVOID&)fnGLSwapBuffers, (PVOID)hwglSwapBuffers);
 		DetourTransactionCommit();
 		
+		/*
 		{
 			wGlGetProcAddress = (WGlGetProcAddress)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglGetProcAddress");
 			printf("[DivaImGui] wGlGetProcAddress=%p\n", wGlGetProcAddress);
@@ -2038,5 +2039,6 @@ namespace DivaImGui
 			DetourAttach(&(PVOID&)wGlGetProcAddress, (PVOID)hWGlGetProcAddress);
 			DetourTransactionCommit();
 		}
+		*/
 	}
 }

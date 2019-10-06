@@ -27,11 +27,6 @@ namespace DivaImGui::VLight
 	typedef BOOL(__stdcall* GLSwapBuffers)(HDC);
 	GLSwapBuffers fnGLSwapBuffers;
 
-	static int moduleEquip1 = 0;
-	static int moduleEquip2 = 0;
-	static int btnSeEquip = 0;
-	static int skinEquip = 0;
-
 	static int fpsLimitBak = 0;
 	static bool showFps = false;
 	static bool showUi2 = false;
@@ -40,15 +35,9 @@ namespace DivaImGui::VLight
 	static bool lybdbg = false;
 	static int firstTime = 8000;
 
-	static int sfxVolume = 100;
-	static int bgmVolume = 100;
 	static float uiTransparency = 0.8;
 	static float sleep = 0;
 	static float fpsDiff = 0;
-	static bool morphologicalAA = 0;
-	static bool morphologicalAA2 = 0;
-	static bool temporalAA = 0;
-	static bool temporalAA2 = 0;
 	static bool copydepth = false;
 
 	static bool vsync = true;
@@ -101,8 +90,9 @@ namespace DivaImGui::VLight
 	static bool dxgi = false;
 	static bool dxgidraw = false;
 	static bool lyb = false;
-
+	static bool force_fpslimit_vsync;
 	static float defaultAetFrameDuration;
+	static int swapinterval;
 
 	GLComponentLight::GLComponentLight()
 	{
@@ -125,31 +115,8 @@ namespace DivaImGui::VLight
 		VirtualProtect(address, byteCount, oldProtect, nullptr);
 	}
 
-	void lybDbg()
-	{
-		const struct { void* Address; std::initializer_list<uint8_t> Data; } patches[] =
-		{
-			// Prevent the DATA_TEST game state from exiting on the first frame
-			//{ (void*)0x0000000140062E91, { 0x00 } },
-			// Enable dw_gui sprite draw calls
-			{ (void*)0x0000000140062E91, { 0x00 } },
-			// Update the dw_gui display
-			{ (void*)0x00000001401B97B0, { 0xB0, 0x01 } },
-			// Draw the dw_gui display
-			{ (void*)0x00000001401B97C0, { 0xB0, 0x01 } },
-			// Enable the dw_gui widgets
-			//{ (void*)0x0000000140192D00, { 0xB8, 0x01, 0x00, 0x00, 0x00, 0xC3 } },
-		};
-
-		for (size_t i = 0; i < _countof(patches); i++)
-			InjectCode(patches[i].Address, patches[i].Data);
-
-	}
-
-
 	void InitializeImGui()
 	{
-
 		//if (WGLExtensionSupported("WGL_EXT_swap_control"))
 		{
 			// Extension is supported, init pointers.
@@ -175,54 +142,20 @@ namespace DivaImGui::VLight
 			{
 				DivaImGui::MainModule::fpsLimitSet = std::stoi(*value);
 			}
-
-			if (resolutionConfig.TryGetValue("MLAA", &value))
+			if (resolutionConfig.TryGetValue("ReShadeState", &value))
 			{
-				morphologicalAA = std::stoi(*value);
+				GLHook::GLCtrl::ReshadeState = std::stoi(*value);
 			}
-			if (resolutionConfig.TryGetValue("TAA", &value))
-			{
-				temporalAA = std::stoi(*value);
-			}
-			if (resolutionConfig.TryGetValue("frm", &value))
-			{
-				frameratemanager = std::stoi(*value);
-			}
-			if (resolutionConfig.TryGetValue("101dbg", &value))
+			if (resolutionConfig.TryGetValue("forcevsyncfpslimit", &value))
 			{
 				if (*value == trueString)
-					lybDbg();
+					force_fpslimit_vsync = true;
 			}
-			if (resolutionConfig.TryGetValue("toonShaderWorkaround", &value))
-			{
-				toonShader = std::stoi(*value);
-			}
-			if (resolutionConfig.TryGetValue("forceToonShader", &value))
-			{
-				forcetoonShader = std::stoi(*value);
-			}
-			/*
-			if (resolutionConfig.TryGetValue("fbWidth", &value))
-			{
-				*(int*)FB_RESOLUTION_WIDTH_ADDRESS = std::stoi(*value);
-			}
-			if (resolutionConfig.TryGetValue("fbHeight", &value))
-			{
-				*(int*)FB_RESOLUTION_HEIGHT_ADDRESS = std::stoi(*value);
-			}
-			*/
 			if (resolutionConfig.TryGetValue("depthCopy", &value))
 			{
 				if (*value == trueString)
 					copydepth = true;
 			}
-			/*
-			if (resolutionConfig.TryGetValue("disableDof", &value))
-			{
-				if (*value == trueString)
-					*(int*)0x00000001411AB650 = 1;
-			}
-			*/
 			if (resolutionConfig.TryGetValue("showFps", &value))
 			{
 				if (*value == trueString)
@@ -249,6 +182,10 @@ namespace DivaImGui::VLight
 					fpsLimitBak = DivaImGui::MainModule::fpsLimitSet;
 				}
 			}
+			if (resolutionConfig.TryGetValue("glswapinterval", &value))
+			{
+				swapinterval = std::stoi(*value);
+			}
 		}
 
 		for (int i = 0; i < 1000; i++)
@@ -256,7 +193,7 @@ namespace DivaImGui::VLight
 			res_scale[i] = -1.0f;
 		}
 
-		std::ifstream f("res_scale.csv");
+		std::ifstream f("plugins\\res_scale.csv");
 		if (f.good())
 		{
 			aria::csv::CsvParser parser(f);
@@ -302,6 +239,18 @@ namespace DivaImGui::VLight
 			if (GLHook::GLCtrl::ReshadeState == 1)
 				DivaImGui::GLHook::GLCtrl::fnReshadeRender();
 		}
+		else {
+			void* ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.dva"), "ReshadeRender");
+			if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.asi"), "ReshadeRender");
+			if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"opengl32.dll"), "ReshadeRender");
+			
+			if (ptr != nullptr)
+			{
+				GLHook::GLCtrl::fnReshadeRender = (GLHook::ReshadeRender)ptr;
+				GLHook::GLCtrl::fnReshadeRender();
+			}
+		}
+		//printf("%p", GLHook::GLCtrl::fnReshadeRender);
 
 		auto keyboard = DivaImGui::Input::Keyboard::GetInstance();
 		keyboard->PollInput();
@@ -388,9 +337,13 @@ namespace DivaImGui::VLight
 			window_flags |= ImGuiWindowFlags_AlwaysAutoResize;
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
-			ImGui::Begin("Universal UI Mode", &MainModule::showUi, window_flags);
-			if (ImGui::CollapsingHeader("ShaderTool"))
+			ImGui::Begin("DivaHook UI", &MainModule::showUi, window_flags);
+			if (ImGui::CollapsingHeader("Graphics Settings"))
 			{
+				ImGui::Text("--- Display ---");
+				ImGui::Checkbox("Vsync", &vsync);
+				ImGui::InputInt("Swap Interval", &swapinterval);
+
 				if (ImGui::Button("Reload Shaders")) { GLHook::GLCtrl::refreshshd = 1; };
 				ImGui::SliderInt("ReShade State", &GLHook::GLCtrl::ReshadeState, -1, 1);
 			}
@@ -456,6 +409,8 @@ namespace DivaImGui::VLight
 			ImGui::Text("BesuBaru, RakiSaionji");
 			ImGui::Text("Uses third party libraries :");
 			ImGui::Text("ImGui");
+			if (*GLHook::GLCtrl::fnReshadeRender != nullptr)
+				ImGui::Text("ReShade");
 			ImGui::Text("MinHook (Tsuda Kageyu)");
 			ImGui::Text("Hacker Disassembler Engine 32/64 C (Vyacheslav Patkov)");
 			if (ImGui::Button("Close")) { showAbout = false; };
@@ -515,15 +470,19 @@ namespace DivaImGui::VLight
 		if (vsync)
 		{
 			if (!lastvsync) {
-				wglSwapIntervalEXT(1);
-				fpsLimitBak = DivaImGui::MainModule::fpsLimitSet;
-				DivaImGui::MainModule::fpsLimitSet = 0;
+				wglSwapIntervalEXT(swapinterval);
+				if (!force_fpslimit_vsync) {
+					fpsLimitBak = DivaImGui::MainModule::fpsLimitSet;
+					DivaImGui::MainModule::fpsLimitSet = 0;
+				}
 				lastvsync = vsync;
 			}
 		}
 		else {
 			if (lastvsync) {
-				DivaImGui::MainModule::fpsLimitSet = fpsLimitBak;
+				if (!force_fpslimit_vsync) {
+					DivaImGui::MainModule::fpsLimitSet = fpsLimitBak;
+				}
 				wglSwapIntervalEXT(0);
 				lastvsync = vsync;
 			}
@@ -541,7 +500,7 @@ namespace DivaImGui::VLight
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach(&(PVOID&)fnGLSwapBuffers, (PVOID)hwglSwapBuffers);
 		DetourTransactionCommit();
-		//GLHook::GLCtrl::fnuglswapbuffer = (void*)*fnGLSwapBuffers;
-		//GLHook::GLCtrl::Update(NULL);
+		GLHook::GLCtrl::fnuglswapbuffer = (void*)*fnGLSwapBuffers;
+		GLHook::GLCtrl::Update(NULL);
 	}
 }
