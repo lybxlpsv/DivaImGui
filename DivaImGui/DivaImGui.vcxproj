@@ -175,6 +175,11 @@
     <ClInclude Include="..\Depedencies\imgui\imstb_rectpack.h" />
     <ClInclude Include="..\Depedencies\imgui\imstb_textedit.h" />
     <ClInclude Include="..\Depedencies\imgui\imstb_truetype.h" />
+    <ClInclude Include="..\Depedencies\snappy\snappy-internal.h" />
+    <ClInclude Include="..\Depedencies\snappy\snappy-sinksource.h" />
+    <ClInclude Include="..\Depedencies\snappy\snappy-stubs-internal.h" />
+    <ClInclude Include="..\Depedencies\snappy\snappy-stubs-public.h" />
+    <ClInclude Include="..\Depedencies\snappy\snappy.h" />
     <ClInclude Include="Constants.h" />
     <ClInclude Include="Constants101.h" />
     <ClInclude Include="FileSystem\ConfigFile.h" />
@@ -207,6 +212,9 @@
     <ClCompile Include="..\Depedencies\imgui\imgui_impl_opengl2.cpp" />
     <ClCompile Include="..\Depedencies\imgui\imgui_impl_win32.cpp" />
     <ClCompile Include="..\Depedencies\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="..\Depedencies\snappy\snappy-sinksource.cc" />
+    <ClCompile Include="..\Depedencies\snappy\snappy-stubs-internal.cc" />
+    <ClCompile Include="..\Depedencies\snappy\snappy.cc" />
     <ClCompile Include="DivaImGui.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="FileSystem\ConfigFile.cpp" />
