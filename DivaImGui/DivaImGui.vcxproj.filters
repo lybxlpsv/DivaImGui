@@ -102,6 +102,9 @@
     <ClInclude Include="..\Depedencies\snappy\snappy-stubs-public.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GLHook\GLHookConstants.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

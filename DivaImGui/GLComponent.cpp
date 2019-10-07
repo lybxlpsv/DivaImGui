@@ -1373,10 +1373,10 @@ namespace DivaImGui
 					ImGui::SliderInt("ReShade Render Pass", &ReShadeState, -1, 1);
 				}
 				ImGui::Checkbox("Sprites", &enablesprites);
-				if (shaderafthookd)
+				//if (shaderafthookd)
 				{
 					ImGui::Text("--- Shader ---");
-					if (ImGui::Button("Reload Shaders")) { refreshshd = 1; }
+					if (ImGui::Button("Reload Shaders")) { GLHook::GLCtrl::refreshshd = 1; }
 				}
 				if (enablesprites)
 				{
@@ -1677,11 +1677,7 @@ namespace DivaImGui
 				}
 		RenderGUI();
 		bool result = fnGLSwapBuffers(hDc);
-		if (refreshshd == 1)
-		{
-			RefreshShaders(hDc);
-			refreshshd = 0;
-		}
+		GLHook::GLCtrl::Update(hDc);
 		return result;
 	}
 
@@ -1904,6 +1900,7 @@ namespace DivaImGui
 		{
 			wdetoursf = true;
 			const char* path = "shadersaft/";
+			/*
 			if ((dirExists(path) == 1) && (*fnDNInitialize != nullptr)) {
 				fnGLShaderSource = (GLShaderSource)wglGetProcAddress("glShaderSource");
 				fnGLShaderSourceARB = (GLShaderSourceARB)wglGetProcAddress("glShaderSourceARB");
@@ -1935,12 +1932,14 @@ namespace DivaImGui
 				DetourTransactionCommit();
 				shaderafthookd = true;
 			}
-			else {
+			else
+			{
 				DetourTransactionBegin();
 				DetourUpdateThread(GetCurrentThread());
 				DetourDetach(&(PVOID&)wGlGetProcAddress, (PVOID)hWGlGetProcAddress);
 				DetourTransactionCommit();
 			}
+			*/
 
 			fnGLBindProgramARB = (GLBindProgramARB)wglGetProcAddress("glBindProgramARB");
 			printf("[DivaImGui] Hooking glBindProgramARB=%p\n", fnGLBindProgramARB);
@@ -2012,7 +2011,8 @@ namespace DivaImGui
 		MH_EnableHook(ptr);
 		*/
 
-		//if (DoesFileExist(L"DivaImGuiDotNet.dll"))
+		/*
+		if (DoesFileExist(L"DivaImGuiDotNet.dll"))
 		{
 			hGetProcIDDLL = LoadLibrary(L"DivaImGuiDotNet.dll");
 
@@ -2020,6 +2020,7 @@ namespace DivaImGui
 			fnDNProcessShader = (DNProcessShader)GetProcAddress(HMODULE(hGetProcIDDLL), "ProcessShader");
 			fnDNRefreshShaders = (DNRefreshShaders)GetProcAddress(HMODULE(hGetProcIDDLL), "RefreshShaders");
 		}
+		*/
 
 		//fnDNInitialize();
 		
@@ -2030,7 +2031,10 @@ namespace DivaImGui
 		DetourAttach(&(PVOID&)fnGLSwapBuffers, (PVOID)hwglSwapBuffers);
 		DetourTransactionCommit();
 		
-		/*
+		GLHook::GLCtrl::fnuglswapbuffer = (void*)*fnGLSwapBuffers;
+		GLHook::GLCtrl::Update(NULL);
+
+		
 		{
 			wGlGetProcAddress = (WGlGetProcAddress)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglGetProcAddress");
 			printf("[DivaImGui] wGlGetProcAddress=%p\n", wGlGetProcAddress);
@@ -2039,6 +2043,6 @@ namespace DivaImGui
 			DetourAttach(&(PVOID&)wGlGetProcAddress, (PVOID)hWGlGetProcAddress);
 			DetourTransactionCommit();
 		}
-		*/
+		
 	}
 }

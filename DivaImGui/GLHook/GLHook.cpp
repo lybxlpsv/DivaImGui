@@ -1,4 +1,5 @@
 #include "GLHook.h"
+#include "GLHookConstants.h"
 #include <filesystem>
 #include "GL/glew.h"
 #include "GL/gl.h"
@@ -42,6 +43,8 @@ namespace DivaImGui::GLHook
 
 	static bool wdetoursf = false;
 	bool GLCtrl::shaderaftmodified = false;
+
+	static int PatchedCounter = 0;
 
 	std::vector<ShaderPatchInfo> patchesVec;
 	std::vector<shaderNames> shaderNamesVec;
@@ -312,7 +315,8 @@ namespace DivaImGui::GLHook
 		if (modifiedStr.length() > 0)
 		{
 			strcpy_s((char*)dest, len + 1000, modifiedStr.c_str());
-			printf("[DivaImGui] Patched %s\n", fileName.c_str());
+			//printf("[DivaImGui] Patched %s\n", fileName.c_str());
+			PatchedCounter++;
 			return modifiedStr.length();
 		}
 		else {
@@ -380,7 +384,7 @@ namespace DivaImGui::GLHook
 			{
 				void* output = malloc(aft701_len);
 				auto outputstr = std::string((char*)output, sizeof(aft701_len));
-				shaderLoaded = snappy::Uncompress((char*)aft701, sizeof(aft101), &outputstr);
+				shaderLoaded = snappy::Uncompress((char*)aft701, sizeof(aft701), &outputstr);
 				loadShaderNameFromMemory(outputstr);
 				free(output);
 			}
@@ -546,6 +550,7 @@ namespace DivaImGui::GLHook
 
 	void RefreshShaders(HDC hdc = NULL)
 	{
+		PatchedCounter = 0;
 		fnDNRefreshShaders();
 
 		glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
@@ -563,9 +568,9 @@ namespace DivaImGui::GLHook
 					glDisable(allocshdenum[i]);
 				}
 				counter++;
-				if (counter == 101)
+				if (counter == 251)
 					counter = 0;
-				if ((hdc != NULL) && (counter == 100))
+				if ((hdc != NULL) && (counter == 250))
 				{
 					DisableProcessWindowsGhosting();
 					//glClear(GL_COLOR_BUFFER_BIT);
@@ -595,6 +600,7 @@ namespace DivaImGui::GLHook
 				}
 			}
 		}
+		printf("[DivaImGui] Patched %d Shaders", PatchedCounter);
 	}
 	static bool init2 = false;
 	void GLCtrl::Update(HDC hdc)
@@ -612,8 +618,15 @@ namespace DivaImGui::GLHook
 				DetourAttach(&(PVOID&)wGlGetProcAddress, (PVOID)hWGlGetProcAddress);
 				DetourTransactionCommit();
 			}
-
+			
 			GLCtrl::Initialized = true;
+		}
+		else {
+			if (!init2)
+			{
+				printf("[DivaImGui] Patched %d Shaders", PatchedCounter);
+				init2 = true;
+			}
 		}
 
 		if (refreshshd == 1)

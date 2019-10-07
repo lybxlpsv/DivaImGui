@@ -54,6 +54,7 @@ namespace DivaImGui
 			{
 				double version = std::stod(*value);
 				int iv = (version * 100);
+				GLHook::GLCtrl::gamever = iv;
 
 				switch (iv) {
 #if _WIN64
@@ -78,7 +79,6 @@ namespace DivaImGui
 				default:
 					printf("[DivaImGui] Unknown Game Version! %d\n", iv);
 					printf("[DivaImGui] Using Universal Mode!\n");
-					GLHook::GLCtrl::gamever = iv;
 					glcomplight.Initialize();
 				}
 			}

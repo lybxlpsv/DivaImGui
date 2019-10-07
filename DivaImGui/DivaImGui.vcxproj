@@ -188,6 +188,7 @@
     <ClInclude Include="GLComponent101.h" />
     <ClInclude Include="GLComponentLight.h" />
     <ClInclude Include="GLHook\GLHook.h" />
+    <ClInclude Include="GLHook\GLHookConstants.h" />
     <ClInclude Include="Keyboard\IInputDevice.h" />
     <ClInclude Include="Keyboard\Keyboard.h" />
     <ClInclude Include="Keyboard\KeyboardState.h" />
