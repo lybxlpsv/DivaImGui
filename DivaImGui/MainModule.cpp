@@ -44,6 +44,12 @@ namespace DivaImGui
 			std::string aftv701 = "7.01";
 			std::string* value;
 
+			if (resolutionConfig.TryGetValue("shaderpatch", &value))
+			{
+				if (*value == "1")
+					GLHook::GLCtrl::Enabled = true;
+			}
+
 			if (resolutionConfig.TryGetValue("shadernamed", &value))
 			{
 				if (*value == "1")

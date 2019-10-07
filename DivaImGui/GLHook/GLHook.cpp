@@ -38,6 +38,7 @@ namespace DivaImGui::GLHook
 	int GLCtrl::gamever = 0;
 	int GLCtrl::refreshshd = 0;
 	void* GLCtrl::fnuglswapbuffer;
+	bool GLCtrl::Enabled = false;
 
 	static HINSTANCE hGetProcIDDLL;
 
@@ -298,6 +299,7 @@ namespace DivaImGui::GLHook
 					modifiedStr = std::string((char*)source, len);
 
 				modifiedStr = std::regex_replace(modifiedStr, patch.dataRegex, patch.dataReplace);
+				modifiedStr = StringReplace(modifiedStr, "<fname>", fileName);
 
 				if (patch.cfg.length() > 0) // patch has a config setting
 				{
@@ -600,11 +602,14 @@ namespace DivaImGui::GLHook
 				}
 			}
 		}
-		printf("[DivaImGui] Patched %d Shaders", PatchedCounter);
+		printf("[DivaImGui] Patched %d Shaders\n", PatchedCounter);
 	}
 	static bool init2 = false;
 	void GLCtrl::Update(HDC hdc)
 	{
+		if (GLCtrl::Enabled == false)
+			return;
+
 		fnGLSwapBuffers = (GLSwapBuffers)GLCtrl::fnuglswapbuffer;
 		if (!GLCtrl::Initialized)
 		{
@@ -624,7 +629,7 @@ namespace DivaImGui::GLHook
 		else {
 			if (!init2)
 			{
-				printf("[DivaImGui] Patched %d Shaders", PatchedCounter);
+				printf("[DivaImGui] Patched %d Shaders\n", PatchedCounter);
 				init2 = true;
 			}
 		}

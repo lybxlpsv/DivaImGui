@@ -27,8 +27,7 @@ namespace DivaImGui::GLHook
 	{
 
 	public:
-
-
+		static bool Enabled;
 		static bool Initialized;
 		static int gamever;
 		static int refreshshd;

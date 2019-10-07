@@ -1373,7 +1373,7 @@ namespace DivaImGui
 					ImGui::SliderInt("ReShade Render Pass", &ReShadeState, -1, 1);
 				}
 				ImGui::Checkbox("Sprites", &enablesprites);
-				//if (shaderafthookd)
+				if (GLHook::GLCtrl::Enabled)
 				{
 					ImGui::Text("--- Shader ---");
 					if (ImGui::Button("Reload Shaders")) { GLHook::GLCtrl::refreshshd = 1; }

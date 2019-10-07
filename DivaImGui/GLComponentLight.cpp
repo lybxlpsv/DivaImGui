@@ -329,8 +329,8 @@ namespace DivaImGui::VLight
 				ImGui::Text("--- Display ---");
 				ImGui::Checkbox("Vsync", &vsync);
 				ImGui::InputInt("Swap Interval", &swapinterval);
-
-				if (ImGui::Button("Reload Shaders")) { GLHook::GLCtrl::refreshshd = 1; };
+				if (GLHook::GLCtrl::Enabled)
+					if (ImGui::Button("Reload Shaders")) { GLHook::GLCtrl::refreshshd = 1; };
 			}
 			if (ImGui::CollapsingHeader("Framerate"))
 			{
