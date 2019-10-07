@@ -4,12 +4,13 @@
 #include "GLComponent101.h"
 #include "GLComponentLight.h"
 #include "FileSystem/ConfigFile.h"
+#include "GLHook/GLHook.h"
 
 namespace DivaImGui
 {
 	typedef std::filesystem::path fspath;
 
-	std::string *MainModule::moduleDirectory;
+	std::string* MainModule::moduleDirectory;
 
 	const wchar_t* MainModule::DivaWindowName = L"Hatsune Miku Project DIVA Arcade Future Tone";
 	const wchar_t* MainModule::ODivaWindowName = L"Project DIVA Arcade";
@@ -26,7 +27,7 @@ namespace DivaImGui
 	DivaImGui::V101::GLComponent101 MainModule::glcomp101;
 	DivaImGui::VLight::GLComponentLight MainModule::glcomplight;
 	bool MainModule::showUi = false;
-	
+
 	void MainModule::initializeglcomp()
 	{
 		const std::string RESOLUTION_CONFIG_FILE_NAME = "graphics.ini";
@@ -40,24 +41,28 @@ namespace DivaImGui
 
 		if (success) {
 			std::string aftv101 = "1.01";
-			std::string universal = "0.00";
 			std::string aftv701 = "7.01";
 			std::string* value;
+
+			if (resolutionConfig.TryGetValue("shadernamed", &value))
+			{
+				if (*value == "1")
+					GLHook::GLCtrl::shaderaftmodified = true;
+			}
+
 			if (resolutionConfig.TryGetValue("version", &value))
 			{
-				int version = std::stoi(*value);
+				double version = std::stod(*value);
+				int iv = (version * 100);
 
-				if (*value == aftv101)
-				{
+				switch (iv) {
+#if _WIN64
+				case 101:
 					printf("[DivaImGui] AFT v1.01\n");
 					glcomp101.Initialize();
-				}
-				if (*value == universal)
-				{
-					printf("[DivaImGui] Universal Mode\n");
-					glcomplight.Initialize();
-				}
-				if (*value == aftv701) {
+					break;
+
+				case 701:
 					printf("[DivaImGui] AFT v7.10\n");
 					DWORD oldProtect, bck;
 					VirtualProtect((BYTE*)0x0000000140626C29, 2, PAGE_EXECUTE_READWRITE, &oldProtect);
@@ -65,10 +70,17 @@ namespace DivaImGui
 					*((BYTE*)0x0000000140626C29 + 1) = 0xE9;
 					VirtualProtect((BYTE*)0x0000000140626C29, 2, oldProtect, &bck);
 					glcomp.Initialize();
+					break;
+#endif
+#if _WIN32
+
+#endif
+				default:
+					printf("[DivaImGui] Unknown Game Version! %d\n", iv);
+					printf("[DivaImGui] Using Universal Mode!\n");
+					GLHook::GLCtrl::gamever = iv;
+					glcomplight.Initialize();
 				}
-			}
-			else {
-				printf("[DivaImGui] Unknown Version!\n");
 			}
 		}
 	}

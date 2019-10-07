@@ -72,6 +72,7 @@ namespace DivaImGui::VLight
 	static bool scaling = false;
 	
 	GLHook::GLCtrl GLComponentLight::glctrl;
+	int GLComponentLight::gamever = 0;
 
 	PFNWGLSWAPINTERVALEXTPROC       wglSwapIntervalEXT = NULL;
 	PFNWGLGETSWAPINTERVALEXTPROC    wglGetSwapIntervalEXT = NULL;
@@ -142,9 +143,10 @@ namespace DivaImGui::VLight
 			{
 				DivaImGui::MainModule::fpsLimitSet = std::stoi(*value);
 			}
-			if (resolutionConfig.TryGetValue("ReShadeState", &value))
+			if (resolutionConfig.TryGetValue("shadernamed", &value))
 			{
-				GLHook::GLCtrl::ReshadeState = std::stoi(*value);
+				if (*value == trueString)
+					GLHook::GLCtrl::shaderaftmodified = true;
 			}
 			if (resolutionConfig.TryGetValue("forcevsyncfpslimit", &value))
 			{
@@ -234,22 +236,6 @@ namespace DivaImGui::VLight
 
 	BOOL __stdcall hwglSwapBuffers(_In_ HDC hDc)
 	{
-		if (*DivaImGui::GLHook::GLCtrl::fnReshadeRender != nullptr)
-		{
-			if (GLHook::GLCtrl::ReshadeState == 1)
-				DivaImGui::GLHook::GLCtrl::fnReshadeRender();
-		}
-		else {
-			void* ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.dva"), "ReshadeRender");
-			if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.asi"), "ReshadeRender");
-			if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"opengl32.dll"), "ReshadeRender");
-			
-			if (ptr != nullptr)
-			{
-				GLHook::GLCtrl::fnReshadeRender = (GLHook::ReshadeRender)ptr;
-				GLHook::GLCtrl::fnReshadeRender();
-			}
-		}
 		//printf("%p", GLHook::GLCtrl::fnReshadeRender);
 
 		auto keyboard = DivaImGui::Input::Keyboard::GetInstance();
@@ -345,7 +331,6 @@ namespace DivaImGui::VLight
 				ImGui::InputInt("Swap Interval", &swapinterval);
 
 				if (ImGui::Button("Reload Shaders")) { GLHook::GLCtrl::refreshshd = 1; };
-				ImGui::SliderInt("ReShade State", &GLHook::GLCtrl::ReshadeState, -1, 1);
 			}
 			if (ImGui::CollapsingHeader("Framerate"))
 			{
@@ -409,8 +394,6 @@ namespace DivaImGui::VLight
 			ImGui::Text("BesuBaru, RakiSaionji");
 			ImGui::Text("Uses third party libraries :");
 			ImGui::Text("ImGui");
-			if (*GLHook::GLCtrl::fnReshadeRender != nullptr)
-				ImGui::Text("ReShade");
 			ImGui::Text("MinHook (Tsuda Kageyu)");
 			ImGui::Text("Hacker Disassembler Engine 32/64 C (Vyacheslav Patkov)");
 			if (ImGui::Button("Close")) { showAbout = false; };

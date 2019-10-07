@@ -1,4 +1,3 @@
-
 #include "GLHook.h"
 #include <filesystem>
 #include "GL/glew.h"
@@ -15,6 +14,7 @@
 #include <regex>
 #include <stdint.h>
 #include <fstream>
+#include <snappy/snappy.h>
 
 namespace DivaImGui::GLHook
 {
@@ -22,11 +22,7 @@ namespace DivaImGui::GLHook
 	typedef void(__stdcall* GLShaderSourceARB)(GLhandleARB, GLsizei, const GLcharARB**, const GLint*);
 	typedef void(__stdcall* GLProgramStringARB)(GLenum, GLenum, GLsizei, const void*);
 	typedef void(__stdcall* GLBindProgramARB)(GLenum, GLuint);
-	typedef void(__stdcall* GLBindTexture)(GLenum, GLuint);
-	typedef GLenum(__stdcall* GLGetError)();
 	typedef PROC(__stdcall* WGlGetProcAddress)(LPCSTR);
-	typedef bool(__stdcall* WGLDXUnlockObjectsNV)(HANDLE, GLint, HANDLE*);
-	typedef bool(__stdcall* WGLDXlockObjectsNV)(HANDLE, GLint, HANDLE*);
 	typedef BOOL(__stdcall* GLSwapBuffers)(HDC);
 	GLSwapBuffers fnGLSwapBuffers;
 
@@ -36,16 +32,10 @@ namespace DivaImGui::GLHook
 	GLBindProgramARB fnGLBindProgramARB;
 
 	WGlGetProcAddress wGlGetProcAddress;
-	GLBindTexture fnGLBindTexture;
-	GLGetError FNGlGetError;
-	ReshadeRender GLCtrl::fnReshadeRender;
-	WGLDXUnlockObjectsNV fnWGLDXUnlockObjectsNV;
-	WGLDXlockObjectsNV fnWGLDXlockObjectsNV;
 
 	bool GLCtrl::Initialized = false;
 	int GLCtrl::gamever = 0;
 	int GLCtrl::refreshshd = 0;
-	int GLCtrl::ReshadeState = -1;
 	void* GLCtrl::fnuglswapbuffer;
 
 	static HINSTANCE hGetProcIDDLL;
@@ -270,33 +260,7 @@ namespace DivaImGui::GLHook
 		return fnGLBindProgramARB(target, program);
 	}
 
-	GLenum __stdcall hwglGetError()
-	{
-		if (CatchAETRenderPass)
-		{
-			//printf("CatchAETRenderPass %p\n", _ReturnAddress());
-			CatchAETRenderPass = false;
-			if (GLCtrl::ReshadeState == 0)
-				if (*GLCtrl::fnReshadeRender != nullptr)
-					GLCtrl::fnReshadeRender();
-				else {
-					void* ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.dva"), "ReshadeRender");
-					if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.asi"), "ReshadeRender");
-					if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"opengl32.dll"), "ReshadeRender");
-
-					if (ptr != nullptr)
-					{
-						GLCtrl::fnReshadeRender = (ReshadeRender)ptr;
-						GLCtrl::fnReshadeRender();
-					}
-				}
-		}
-		return FNGlGetError();
-	}
-
-
-
-	int ProcessShader(const void* source, int* dest, int len, std::string fileName)
+	int ProcessShader(const void* source, int* dest, int len, std::string fileName, GLenum glformat, GLuint glid)
 	{
 		std::string modifiedStr = "";
 		if (fileName == "NULL_shd")
@@ -306,6 +270,9 @@ namespace DivaImGui::GLHook
 			fileName = StringReplace(splitted.at(1), "#", "");
 			//printf("[DivaImGui] Patching %s\n", fileName.c_str());
 			modifiedStr = std::string((char*)source, 0);
+			std::ofstream out("dump.txt", std::ios::app);
+			out << glid << "," << glformat << "," << fileName << "\n";
+			out.close();
 		}
 		//printf("[DivaImGui] Patching %s\n", fileName.c_str());
 		for (ShaderPatchInfo& patch : patchesVec)
@@ -341,7 +308,7 @@ namespace DivaImGui::GLHook
 				}
 			}
 		}
-		//printf("[DivaImGui] source %s.*s\n", len, source);
+		
 		if (modifiedStr.length() > 0)
 		{
 			strcpy_s((char*)dest, len + 1000, modifiedStr.c_str());
@@ -355,22 +322,47 @@ namespace DivaImGui::GLHook
 
 	int fnDNProcessShader(const void* source, int* dest, int len, GLenum glformat, GLuint glid)
 	{
-		//printf("Processing! %d\n", glid);
 		memcpy(dest, source, len);
 
 		if (GLCtrl::shaderaftmodified)
 		{
-			return ProcessShader(source, dest, len, "NULL_shd");
+			return ProcessShader(source, dest, len, "NULL_shd", glformat, glid);
 		}
 		else for (auto& shadernames : shaderNamesVec)
 		{
 			if (shadernames.glenum == glformat)
 				if (shadernames.gluint == glid)
 				{
-					return ProcessShader(source, dest, len, shadernames.filename);
+					return ProcessShader(source, dest, len, shadernames.filename, glformat, glid);
 				}
 		}
 		return len;
+	}
+
+	inline void loadShaderNameFromMemory(std::string outputstr)
+	{
+		auto per_line = SplitString(outputstr, "\r\n");
+		for (auto& str : per_line)
+		{
+			auto shadername = shaderNames();
+			auto splitted = SplitString(str, ",");
+			int count = 0;
+			for (auto& str : splitted)
+			{
+				if (count == 0)
+					shadername.gluint = stoi(str);
+				if (count == 1)
+					shadername.glenum = stoi(str);
+				if (count == 2)
+					shadername.filename = str;
+				count++;
+
+				if (count == 3)
+				{
+					shaderNamesVec.push_back(shadername);
+				}
+			}
+		}
 	}
 
 	void fnDNRefreshShaders()
@@ -379,15 +371,38 @@ namespace DivaImGui::GLHook
 		shaderNamesVec.clear();
 
 		std::ifstream fileStream("plugins\\shadernames.txt");
+		bool shaderLoaded = false;
+
 		if (!fileStream.good())
 		{
-			if (!GLCtrl::shaderaftmodified)
+#if _WIN64
+			if (GLCtrl::gamever == 701)
+			{
+				void* output = malloc(aft701_len);
+				auto outputstr = std::string((char*)output, sizeof(aft701_len));
+				shaderLoaded = snappy::Uncompress((char*)aft701, sizeof(aft101), &outputstr);
+				loadShaderNameFromMemory(outputstr);
+			}
+#endif
+
+#if _WIN32
+			if (GLCtrl::gamever == 101)
+			{
+				void* output = malloc(pda101_len);
+				auto outputstr = std::string((char*)output, sizeof(pda101_len));
+				shaderLoaded = snappy::Uncompress((char*)pda101, sizeof(pda101), &outputstr);
+				loadShaderNameFromMemory(outputstr);
+			}
+#endif
+			if ((!GLCtrl::shaderaftmodified) || !shaderLoaded)
 				printf("[DivaImGui] shadernames.txt missing!\n");
+
 			patchesVec.clear();
 			configMap.clear();
 			LoadConfig();
+			int shaders = shaderNamesVec.size();
 			int patches = patchesVec.size();
-			printf("[DivaImGui] Configs Loaded! Shd=0 Patch=%d\n", patches);
+			printf("[DivaImGui] Configs Loaded! Shd=%d Patch=%d\n", shaders, patches);
 			return;
 		}
 		std::string line;
@@ -521,12 +536,6 @@ namespace DivaImGui::GLHook
 			DetourAttach(&(PVOID&)fnGLBindProgramARB, (PVOID)hwglBindProgramARB);
 			DetourTransactionCommit();
 
-			FNGlGetError = *glGetError;
-			printf("[DivaImGui] Hooking glGetError=%p\n", FNGlGetError);
-			DetourTransactionBegin();
-			DetourUpdateThread(GetCurrentThread());
-			DetourAttach(&(PVOID&)FNGlGetError, (PVOID)hwglGetError);
-			DetourTransactionCommit();
 			fnDNRefreshShaders();
 			glewInit();
 		}
@@ -538,7 +547,7 @@ namespace DivaImGui::GLHook
 		fnDNRefreshShaders();
 
 		glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
-
+		int counter = 0;
 		for (int i = 0; i < allocatedshadercount; i++)
 		{
 			if (allocatedshaders[i] != 1)
@@ -546,26 +555,18 @@ namespace DivaImGui::GLHook
 				int newlen = -1;
 				newlen = fnDNProcessShader((const void*)allocshdorigptr[i], allocshdptr[i], allocshdlen[i], allocshdenum[i], allocatedshaders[i]);
 				if (newlen != -1) {
-					//printf("Deleto");
-					//glDeleteShader(allocatedshaders[i]);
-					//printf("glBindProgramARB");
-					//glGenProgramsARB(1, (GLuint*)allocatedshaders[i]);
-
-					//printf("%d\n", allocshdenum[i]);
-					//printf("%d\n", allocatedshaders[i]);
 					glBindProgramARB(allocshdenum[i], allocatedshaders[i]);
-					//printf("fnDNProcessShader");
-
-					//printf("fnGLProgramStringARB");
 					fnGLProgramStringARB(allocshdenum[i], GL_PROGRAM_FORMAT_ASCII_ARB, newlen, allocshdptr[i]);
 					glGetError();
 					glDisable(allocshdenum[i]);
 				}
-
-				if (hdc != NULL)
+				counter++;
+				if (counter == 101)
+					counter = 0;
+				if ((hdc != NULL) && (counter == 100))
 				{
 					DisableProcessWindowsGhosting();
-					glClear(GL_COLOR_BUFFER_BIT);
+					//glClear(GL_COLOR_BUFFER_BIT);
 					ImGui::SetNextWindowBgAlpha(1.0f);
 
 					ImGui_ImplWin32_NewFrame();
@@ -609,13 +610,13 @@ namespace DivaImGui::GLHook
 				DetourAttach(&(PVOID&)wGlGetProcAddress, (PVOID)hWGlGetProcAddress);
 				DetourTransactionCommit();
 			}
-			
+
 			GLCtrl::Initialized = true;
 		}
 
 		if (refreshshd == 1)
 		{
-			RefreshShaders(NULL);
+			RefreshShaders(hdc);
 			refreshshd = 0;
 		}
 	}

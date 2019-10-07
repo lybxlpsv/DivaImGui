@@ -10,5 +10,6 @@ namespace DivaImGui::VLight
 		~GLComponentLight();
 		void Initialize();
 		static GLHook::GLCtrl glctrl;
+		static int gamever;
 	};
 }
