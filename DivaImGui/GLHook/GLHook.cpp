@@ -382,6 +382,7 @@ namespace DivaImGui::GLHook
 				auto outputstr = std::string((char*)output, sizeof(aft701_len));
 				shaderLoaded = snappy::Uncompress((char*)aft701, sizeof(aft101), &outputstr);
 				loadShaderNameFromMemory(outputstr);
+				free(output);
 			}
 #endif
 
@@ -392,9 +393,10 @@ namespace DivaImGui::GLHook
 				auto outputstr = std::string((char*)output, sizeof(pda101_len));
 				shaderLoaded = snappy::Uncompress((char*)pda101, sizeof(pda101), &outputstr);
 				loadShaderNameFromMemory(outputstr);
+				free(output);
 			}
 #endif
-			if ((!GLCtrl::shaderaftmodified) || !shaderLoaded)
+			if ((!GLCtrl::shaderaftmodified) && !shaderLoaded)
 				printf("[DivaImGui] shadernames.txt missing!\n");
 
 			patchesVec.clear();
