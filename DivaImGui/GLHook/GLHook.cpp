@@ -52,6 +52,7 @@ namespace DivaImGui::GLHook
 	bool GLCtrl::isAmd = false;
 	bool GLCtrl::isIntel = false;
 	bool GLCtrl::debug = false;
+	bool GLCtrl::disableGpuDetect = false;
 	bool GLCtrl::disableSprShader = false;
 	static HINSTANCE hGetProcIDDLL;
 	static bool gpuchecked = false;
@@ -883,7 +884,8 @@ namespace DivaImGui::GLHook
 	{
 		if (!gpuchecked)
 		{
-			InitGpu();
+			if (!GLCtrl::disableGpuDetect)
+				InitGpu();
 		}
 
 		PROC leproc = wGlGetProcAddress(name);

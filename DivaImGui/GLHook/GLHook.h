@@ -39,6 +39,7 @@ namespace DivaImGui::GLHook
 		static bool shaderaftmodified;
 		static bool isAmd;
 		static bool isIntel;
+		static bool disableGpuDetect;
 		static bool disableSprShader;
 		static bool debug;
 		static void* fnuglswapbuffer;
