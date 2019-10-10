@@ -3,6 +3,7 @@
 #include <string>
 #include "GLComponent.h"
 #include "GLComponent101.h"
+#include "GLComponentLight.h"
 
 namespace DivaImGui
 {
@@ -13,6 +14,7 @@ namespace DivaImGui
 
 	public:
 		static const wchar_t* DivaWindowName;
+		static const wchar_t* ODivaWindowName;
 		static const wchar_t* GlutDefaultName;
 		static const wchar_t* freeGlutDefaultName;
 
@@ -22,8 +24,10 @@ namespace DivaImGui
 		static int fpsLimit;
 		static int fpsLimitSet;
 		static bool inputDisable;
+
 		static DivaImGui::GLComponent glcomp;
 		static DivaImGui::V101::GLComponent101 glcomp101;
+		static DivaImGui::VLight::GLComponentLight glcomplight;
 
 		static bool showUi;
 		static std::string GetModuleDirectory();
