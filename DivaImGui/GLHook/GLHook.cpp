@@ -887,6 +887,11 @@ namespace DivaImGui::GLHook
 		}
 
 		PROC leproc = wGlGetProcAddress(name);
+
+		if (!GLCtrl::isAmd && !GLCtrl::isIntel)
+			if (GLCtrl::Enabled == false)
+				return leproc;
+
 		if (leproc == nullptr)
 		{
 			/*
@@ -1070,10 +1075,6 @@ namespace DivaImGui::GLHook
 	static bool init2 = false;
 	void GLCtrl::Update(HDC hdc)
 	{
-		if (!GLCtrl::isAmd && !GLCtrl::isIntel)
-			if (GLCtrl::Enabled == false)
-				return;
-
 		fnGLSwapBuffers = (GLSwapBuffers)GLCtrl::fnuglswapbuffer;
 		if (!GLCtrl::Initialized)
 		{
