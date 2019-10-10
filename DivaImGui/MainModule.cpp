@@ -66,7 +66,7 @@ namespace DivaImGui
 			if (resolutionConfig.TryGetValue("disableSprShaders", &value))
 			{
 				if (*value == "1")
-					GLHook::GLCtrl::isIntel = true;
+					GLHook::GLCtrl::disableSprShader = true;
 			}
 
 
