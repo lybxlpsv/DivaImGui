@@ -886,6 +886,9 @@ namespace DivaImGui::GLHook
 		{
 			if (!GLCtrl::disableGpuDetect)
 				InitGpu();
+
+			LoadConfig();
+			gpuchecked = true;
 		}
 
 		PROC leproc = wGlGetProcAddress(name);
@@ -1080,7 +1083,6 @@ namespace DivaImGui::GLHook
 		fnGLSwapBuffers = (GLSwapBuffers)GLCtrl::fnuglswapbuffer;
 		if (!GLCtrl::Initialized)
 		{
-			LoadConfig();
 			{
 				wGlGetProcAddress = (WGlGetProcAddress)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglGetProcAddress");
 				printf("[DivaImGui] wGlGetProcAddress=%p\n", wGlGetProcAddress);
