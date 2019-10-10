@@ -915,6 +915,13 @@ namespace DivaImGui::V101
 				ImGui::Text("--- Misc ---");
 				ImGui::Checkbox("Force Toon Shader", &forcetoonShader);
 				ImGui::Checkbox("Sprites", &enablesprites);
+
+				if (GLHook::GLCtrl::Enabled)
+				{
+					ImGui::Text("--- Shader ---");
+					if (ImGui::Button("Reload Shaders")) { GLHook::GLCtrl::refreshshd = 1; }
+				}
+
 				/*
 				if (enablesprites)
 				{
@@ -1113,6 +1120,7 @@ namespace DivaImGui::V101
 			}
 		}
 
+		GLHook::GLCtrl::Update(NULL);
 		return fnGLSwapBuffers(hDc);
 	}
 
@@ -1126,5 +1134,8 @@ namespace DivaImGui::V101
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach(&(PVOID&)fnGLSwapBuffers, (PVOID)hwglSwapBuffers);
 		DetourTransactionCommit();
+
+		GLHook::GLCtrl::fnuglswapbuffer = (void*)*fnGLSwapBuffers;
+		GLHook::GLCtrl::Update(NULL);
 	}
 }

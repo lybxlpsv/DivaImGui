@@ -41,13 +41,37 @@ namespace DivaImGui
 
 		if (success) {
 			std::string aftv101 = "1.01";
-			std::string aftv701 = "7.01";
+			std::string aftv710 = "7.10";
 			std::string* value;
 
 			if (resolutionConfig.TryGetValue("shaderpatch", &value))
 			{
 				if (*value == "1")
 					GLHook::GLCtrl::Enabled = true;
+			}
+
+			if (resolutionConfig.TryGetValue("amd", &value))
+			{
+				if (*value == "1")
+					GLHook::GLCtrl::isAmd = true;
+			}
+
+			if (resolutionConfig.TryGetValue("intel", &value))
+			{
+				if (*value == "1")
+					GLHook::GLCtrl::isIntel = true;
+			}
+
+			if (resolutionConfig.TryGetValue("disableSprShaders", &value))
+			{
+				if (*value == "1")
+					GLHook::GLCtrl::isIntel = true;
+			}
+
+			if (resolutionConfig.TryGetValue("lybdbg", &value))
+			{
+				if (*value == "1")
+					GLHook::GLCtrl::debug = true;
 			}
 
 			if (resolutionConfig.TryGetValue("shadernamed", &value))
@@ -69,7 +93,7 @@ namespace DivaImGui
 					glcomp101.Initialize();
 					break;
 
-				case 701:
+				case 710:
 					printf("[DivaImGui] AFT v7.10\n");
 					DWORD oldProtect, bck;
 					VirtualProtect((BYTE*)0x0000000140626C29, 2, PAGE_EXECUTE_READWRITE, &oldProtect);

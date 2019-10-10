@@ -16,6 +16,11 @@ namespace DivaImGui::GLHook
 		std::string cfg;
 	};
 
+	struct SimpleReplace {
+		std::string find;
+		std::string replace;
+	};
+
 	struct shaderNames {
 		GLuint gluint;
 		GLenum glenum;
@@ -32,6 +37,10 @@ namespace DivaImGui::GLHook
 		static int gamever;
 		static int refreshshd;
 		static bool shaderaftmodified;
+		static bool isAmd;
+		static bool isIntel;
+		static bool disableSprShader;
+		static bool debug;
 		static void* fnuglswapbuffer;
 		static void Update(HDC hdc);
 	};

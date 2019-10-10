@@ -87,6 +87,11 @@ namespace DivaImGui::VLight
 
 	twglSwapBuffers owglSwapBuffers;
 
+	typedef chrono::time_point<chrono::steady_clock> steady_clock;
+	typedef chrono::high_resolution_clock high_resolution_clock;
+
+	steady_clock start;
+	steady_clock end;
 
 	static bool dxgi = false;
 	static bool dxgidraw = false;
@@ -94,6 +99,7 @@ namespace DivaImGui::VLight
 	static bool force_fpslimit_vsync;
 	static float defaultAetFrameDuration;
 	static int swapinterval;
+	static bool guirender = true;
 
 	GLComponentLight::GLComponentLight()
 	{
@@ -173,6 +179,11 @@ namespace DivaImGui::VLight
 				if (*value == trueString)
 					lybdbg = true;
 			}
+			if (resolutionConfig.TryGetValue("disableGui", &value))
+			{
+				if (*value == "1")
+					guirender = false;
+			}
 			if (resolutionConfig.TryGetValue("Vsync", &value))
 			{
 				if (*value == trueString)
@@ -234,9 +245,8 @@ namespace DivaImGui::VLight
 
 	static bool enablesprites = true;
 
-	BOOL __stdcall hwglSwapBuffers(_In_ HDC hDc)
+	void RenderGui(HDC hDc)
 	{
-		//printf("%p", GLHook::GLCtrl::fnReshadeRender);
 
 		auto keyboard = DivaImGui::Input::Keyboard::GetInstance();
 		keyboard->PollInput();
@@ -248,7 +258,7 @@ namespace DivaImGui::VLight
 			if (MainModule::DivaWindowHandle == NULL)
 				MainModule::DivaWindowHandle = FindWindow(0, MainModule::ODivaWindowName);
 			if (MainModule::DivaWindowHandle == NULL)
-				return fnGLSwapBuffers(hDc);
+				return;
 
 			InitializeImGui();
 		}
@@ -368,11 +378,7 @@ namespace DivaImGui::VLight
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 			ImGui::Begin("Debug Ui", &debugUi, window_flags);
-			
-			if (ImGui::CollapsingHeader("dbg"))
-			{
-				
-			}
+
 			ImGui::End();
 		}
 
@@ -470,8 +476,15 @@ namespace DivaImGui::VLight
 				lastvsync = vsync;
 			}
 		}
+	}
+
+	BOOL __stdcall hwglSwapBuffers(_In_ HDC hDc)
+	{
 		GLHook::GLCtrl::Update(hDc);
-		return fnGLSwapBuffers(hDc);
+		if (guirender)
+			RenderGui(hDc);
+		bool result = fnGLSwapBuffers(hDc);
+		return result;
 	}
 
 	void GLComponentLight::Initialize()

@@ -17,6 +17,9 @@
 #include <fstream>
 #include <snappy/snappy.h>
 
+#include <intrin.h>
+#pragma intrinsic(_ReturnAddress)
+
 namespace DivaImGui::GLHook
 {
 	typedef void(__stdcall* GLShaderSource)(GLuint, GLsizei, const GLchar**, const GLint*);
@@ -24,29 +27,41 @@ namespace DivaImGui::GLHook
 	typedef void(__stdcall* GLProgramStringARB)(GLenum, GLenum, GLsizei, const void*);
 	typedef void(__stdcall* GLBindProgramARB)(GLenum, GLuint);
 	typedef PROC(__stdcall* WGlGetProcAddress)(LPCSTR);
+	typedef void(__stdcall* GLBindTexture)(GLenum, GLuint);
 	typedef BOOL(__stdcall* GLSwapBuffers)(HDC);
+	typedef BOOL(__stdcall* GLEnable)(GLenum);
+	typedef void(__stdcall* GLDrawRangeElements)(GLenum, GLuint, GLuint, GLsizei, GLenum, const GLvoid*);
 	GLSwapBuffers fnGLSwapBuffers;
-
+	PFNGLBINDFRAMEBUFFEREXTPROC fnGLBindFramebufferEXT;
 	GLShaderSource fnGLShaderSource;
 	GLShaderSourceARB fnGLShaderSourceARB;
 	GLProgramStringARB fnGLProgramStringARB;
 	GLBindProgramARB fnGLBindProgramARB;
-
+	GLDrawRangeElements fnGLDrawRangeElements;
+	GLBindTexture fnGLBindTexture;
 	WGlGetProcAddress wGlGetProcAddress;
+	GLEnable fnGLEnable;
+	PFNGLBINDBUFFERPROC fnGLBindBuffer;
+	PFNGLBUFFERDATAPROC fnGLBufferData;
 
 	bool GLCtrl::Initialized = false;
 	int GLCtrl::gamever = 0;
 	int GLCtrl::refreshshd = 0;
 	void* GLCtrl::fnuglswapbuffer;
 	bool GLCtrl::Enabled = false;
-
+	bool GLCtrl::isAmd = false;
+	bool GLCtrl::isIntel = false;
+	bool GLCtrl::debug = false;
+	bool GLCtrl::disableSprShader = false;
 	static HINSTANCE hGetProcIDDLL;
+	static bool gpuchecked = false;
 
 	static bool wdetoursf = false;
 	bool GLCtrl::shaderaftmodified = false;
 
 	static int PatchedCounter = 0;
 
+	std::vector<SimpleReplace> amdPatchesVec;
 	std::vector<ShaderPatchInfo> patchesVec;
 	std::vector<shaderNames> shaderNamesVec;
 	typedef std::pair<std::string, std::string> strpair;
@@ -62,6 +77,14 @@ namespace DivaImGui::GLHook
 			return 1;
 		else
 			return 0;
+	}
+
+	inline bool FindString(const std::string& line, const std::string& search)
+	{
+		std::size_t found = line.find(search);
+		if (found != std::string::npos)
+			return true;
+		else return false;
 	}
 
 	std::vector<std::string> SplitString(const std::string& str, const std::string& delim)
@@ -113,6 +136,17 @@ namespace DivaImGui::GLHook
 		}
 
 		return outstr;
+	}
+
+	std::string JoinString(std::vector<std::string> arr, std::string delimiter)
+	{
+		if (arr.empty()) return "";
+
+		std::string str;
+		for (auto i : arr)
+			str += i + delimiter;
+		str = str.substr(0, str.size() - delimiter.size());
+		return str;
 	}
 
 	void LoadConfig()
@@ -203,6 +237,7 @@ namespace DivaImGui::GLHook
 					else if (rule.size() >= 3 && rule.rfind("to:", 0) == 0)
 					{
 						rule.erase(0, 3);
+						rule = StringReplace(rule, "\\n", "\n");
 						patch.dataReplace = rule;
 					}
 				}
@@ -255,13 +290,75 @@ namespace DivaImGui::GLHook
 		//printf("[DivaImGui] Shader CatchARB!%d\n", program);
 		lasttarget = target;
 		lastprogram = program;
-		if (target == GL_VERTEX_PROGRAM_ARB)
-			if (program == 7683)
-			{
-				CatchAETRenderPass = true;
-			}
 
 		return fnGLBindProgramARB(target, program);
+	}
+
+	void __stdcall hwglEnable(GLenum cap)
+	{
+		fnGLEnable(cap);
+#if !_WIN64
+
+		if (GLCtrl::gamever == 201)
+		{
+			{
+				if (lastprogram > 3269)
+				{
+					glDisable(GL_VERTEX_PROGRAM_ARB);
+					glDisable(GL_FRAGMENT_PROGRAM_ARB);
+				}
+			}
+		}
+
+		if (GLCtrl::gamever == 300)
+		{
+			{
+				if (lastprogram > 3761)
+				{
+					glDisable(GL_VERTEX_PROGRAM_ARB);
+					glDisable(GL_FRAGMENT_PROGRAM_ARB);
+				}
+			}
+		}
+
+		if (GLCtrl::gamever == 600)
+		{
+			{
+				if (lastprogram > 4179)
+				{
+					glDisable(GL_VERTEX_PROGRAM_ARB);
+					glDisable(GL_FRAGMENT_PROGRAM_ARB);
+				}
+			}
+		}
+#endif
+
+#if _WIN64
+		if (GLCtrl::gamever == 101)
+		{
+			{
+				if (lastprogram > 7791)
+				{
+					//printf("disabling");
+					glDisable(GL_VERTEX_PROGRAM_ARB);
+					glDisable(GL_FRAGMENT_PROGRAM_ARB);
+				}
+			}
+		}
+
+		if ((GLCtrl::gamever == 710) || (GLCtrl::gamever == 600))
+		{
+			{
+				if (lastprogram > 8573)
+				{
+					//printf("disabling");
+					glDisable(GL_VERTEX_PROGRAM_ARB);
+					glDisable(GL_FRAGMENT_PROGRAM_ARB);
+				}
+			}
+		}
+#endif
+		return;
 	}
 
 	int ProcessShader(const void* source, int* dest, int len, std::string fileName, GLenum glformat, GLuint glid)
@@ -279,6 +376,106 @@ namespace DivaImGui::GLHook
 			out.close();
 		}
 		//printf("[DivaImGui] Patching %s\n", fileName.c_str());
+
+		if ((GLCtrl::isAmd) || (GLCtrl::isIntel))
+		{
+			amdPatchesVec.clear();
+
+			modifiedStr = std::string((char*)source, len);
+
+			auto splitted = SplitString(modifiedStr, "\n");
+			std::vector<std::string> newsplitted;
+
+			for (std::string& line : splitted)
+			{
+				std::size_t found = line.find("ATTRIB");
+				if (found != std::string::npos)
+				{
+					SimpleReplace patch = SimpleReplace();
+					std::string newstr = line;
+					newstr = StringReplace(newstr, "ATTRIB", "");
+					newstr = StringReplace(newstr, ";", "");
+					newstr = StringReplace(newstr, " = ", "=");
+					newstr = StringReplace(newstr, " ", "");
+					auto nsplit = SplitString(newstr, "=");
+					patch.find = nsplit[0];
+					patch.replace = nsplit.at(1);
+					amdPatchesVec.push_back(patch);
+				}
+				else {
+					found = line.find("OUTPUT");
+					if (found != std::string::npos)
+					{
+						bool ispatch = true;
+						found = line.find("SHORT");
+						if (found != std::string::npos)
+						{
+							ispatch = false;
+						}
+						found = line.find("LONG");
+						if (found != std::string::npos)
+						{
+							ispatch = false;
+						}
+						if (GLCtrl::isIntel)
+							ispatch = true;
+						if (ispatch)
+						{
+							SimpleReplace patch = SimpleReplace();
+							std::string newstr = line;
+							newstr = StringReplace(newstr, "OUTPUT", "");
+							newstr = StringReplace(newstr, "SHORT ", "");
+							newstr = StringReplace(newstr, "LONG ", "");
+							newstr = StringReplace(newstr, ";", "");
+							newstr = StringReplace(newstr, " = ", "=");
+							newstr = StringReplace(newstr, " ", "");
+							auto nsplit = SplitString(newstr, "=");
+							patch.find = nsplit.at(0);
+							patch.replace = nsplit.at(1);
+							amdPatchesVec.push_back(patch);
+						}
+						if (GLCtrl::isIntel)
+						{
+							//line = StringReplace(line, "SHORT OUTPUT", "##SHORT OUTPUT");
+							//line = StringReplace(line, "LONG OUTPUT", "##LONG OUTPUT");
+						}
+					}
+					else {
+						if ((GLCtrl::isIntel) || (GLCtrl::gamever == 710))
+						{
+							found = line.find("PARAM");
+							if (found != std::string::npos)
+							{
+								found = line.find(".color");
+								if (found != std::string::npos)
+								{
+									SimpleReplace patch = SimpleReplace();
+									std::string newstr = line;
+									newstr = StringReplace(newstr, "PARAM", "");
+									newstr = StringReplace(newstr, ";", "");
+									newstr = StringReplace(newstr, " = ", "=");
+									newstr = StringReplace(newstr, " ", "");
+									auto nsplit = SplitString(newstr, "=");
+									patch.find = nsplit[0];
+									patch.replace = nsplit.at(1);
+									amdPatchesVec.push_back(patch);
+									line = StringReplace(line, "PARAM", "##PARAM");
+								}
+							}
+
+						}
+
+						for (SimpleReplace& patch : amdPatchesVec)
+						{
+							line = StringReplace(line, patch.find, patch.replace);
+						}
+						//line = StringReplace(line, "POW", "##POW");
+					}
+				}
+			}
+			modifiedStr = JoinString(splitted, "\n");
+		}
+
 		for (ShaderPatchInfo& patch : patchesVec)
 		{
 			bool archMatches = false;
@@ -290,13 +487,24 @@ namespace DivaImGui::GLHook
 			if (patch.cfg.length() == 0 || // patch has no config setting
 				(configMap.find(patch.cfg) != configMap.end() && configMap[patch.cfg].first != "0")) // patch has a toggle and is not set to 0
 			{
-				cfgMatches = true;
+				if (GLCtrl::Enabled == false)
+					cfgMatches = true;
 			}
+
+			if (patch.cfg == "amd")
+				if (GLCtrl::isAmd)
+					cfgMatches = true;
+
+			if (patch.cfg == "intel")
+				if (GLCtrl::isIntel)
+					cfgMatches = true;
 
 			if (archMatches && cfgMatches && std::regex_match(fileName.c_str(), patch.fileRegex))
 			{
 				if (modifiedStr.length() == 0)
+				{
 					modifiedStr = std::string((char*)source, len);
+				}
 
 				modifiedStr = std::regex_replace(modifiedStr, patch.dataRegex, patch.dataReplace);
 				modifiedStr = StringReplace(modifiedStr, "<fname>", fileName);
@@ -313,9 +521,10 @@ namespace DivaImGui::GLHook
 				}
 			}
 		}
-		
+
 		if (modifiedStr.length() > 0)
 		{
+			//printf("%s", modifiedStr.c_str());
 			strcpy_s((char*)dest, len + 1000, modifiedStr.c_str());
 			//printf("[DivaImGui] Patched %s\n", fileName.c_str());
 			PatchedCounter++;
@@ -382,7 +591,7 @@ namespace DivaImGui::GLHook
 		if (!fileStream.good())
 		{
 #if _WIN64
-			if (GLCtrl::gamever == 701)
+			if (GLCtrl::gamever == 710)
 			{
 				void* output = malloc(aft701_len);
 				auto outputstr = std::string((char*)output, sizeof(aft701_len));
@@ -390,14 +599,60 @@ namespace DivaImGui::GLHook
 				loadShaderNameFromMemory(outputstr);
 				free(output);
 			}
+
+			if (GLCtrl::gamever == 600)
+			{
+				void* output = malloc(aft600_len);
+				auto outputstr = std::string((char*)output, sizeof(aft600_len));
+				shaderLoaded = snappy::Uncompress((char*)aft600, sizeof(aft600), &outputstr);
+				loadShaderNameFromMemory(outputstr);
+				free(output);
+			}
+
+			if (GLCtrl::gamever == 101)
+			{
+				void* output = malloc(aft101_len);
+				auto outputstr = std::string((char*)output, sizeof(aft101_len));
+				shaderLoaded = snappy::Uncompress((char*)aft101, sizeof(aft101), &outputstr);
+				loadShaderNameFromMemory(outputstr);
+				free(output);
+			}
 #endif
 
-#if _WIN32
+#if !_WIN64
+
 			if (GLCtrl::gamever == 101)
 			{
 				void* output = malloc(pda101_len);
 				auto outputstr = std::string((char*)output, sizeof(pda101_len));
 				shaderLoaded = snappy::Uncompress((char*)pda101, sizeof(pda101), &outputstr);
+				loadShaderNameFromMemory(outputstr);
+				free(output);
+			}
+
+			if (GLCtrl::gamever == 200)
+			{
+				void* output = malloc(pda200_len);
+				auto outputstr = std::string((char*)output, sizeof(pda200_len));
+				shaderLoaded = snappy::Uncompress((char*)pda200, sizeof(pda200), &outputstr);
+				loadShaderNameFromMemory(outputstr);
+				free(output);
+			}
+
+			if (GLCtrl::gamever == 301)
+			{
+				void* output = malloc(pda301_len);
+				auto outputstr = std::string((char*)output, sizeof(pda301_len));
+				shaderLoaded = snappy::Uncompress((char*)pda301, sizeof(pda301), &outputstr);
+				loadShaderNameFromMemory(outputstr);
+				free(output);
+			}
+
+			if (GLCtrl::gamever == 600)
+			{
+				void* output = malloc(pda600_len);
+				auto outputstr = std::string((char*)output, sizeof(pda600_len));
+				shaderLoaded = snappy::Uncompress((char*)pda600, sizeof(pda600), &outputstr);
 				loadShaderNameFromMemory(outputstr);
 				free(output);
 			}
@@ -412,7 +667,7 @@ namespace DivaImGui::GLHook
 			int patches = patchesVec.size();
 			printf("[DivaImGui] Configs Loaded! Shd=%d Patch=%d\n", shaders, patches);
 			return;
-		}
+			}
 		std::string line;
 
 		while (std::getline(fileStream, line))
@@ -443,7 +698,7 @@ namespace DivaImGui::GLHook
 		int shaders = shaderNamesVec.size();
 		int patches = patchesVec.size();
 		printf("[DivaImGui] Configs Loaded! Shd=%d Patch=%d\n", shaders, patches);
-	}
+		}
 
 	static bool shdInitialized = false;
 	void __stdcall hwglProgramStringARB(GLenum target, GLenum format, GLsizei len, const void* pointer)
@@ -499,12 +754,165 @@ namespace DivaImGui::GLHook
 		return fnGLProgramStringARB(target, format, len, pointer);
 	}
 
+	void InitGpu()
+	{
+		gpuchecked = true;
+		auto gvendor = glGetString(GL_VENDOR);
+		std::string vendor = std::string((char*)gvendor);
+		std::transform(vendor.begin(), vendor.end(), vendor.begin(), ::tolower);
+		if (FindString(vendor, "nvidia"))
+		{
+			GLCtrl::isAmd = false;
+			GLCtrl::isIntel = false;
+			printf("[DivaImGui] NVIDIA detected\n");
+		}
+		else if (FindString(vendor, "amd") || FindString(vendor, "ati"))
+		{
+			GLCtrl::isAmd = true;
+			GLCtrl::isIntel = false;
+			printf("[DivaImGui] AMD detected, applying fixes...\n");
+		}
+		else if (FindString(vendor, "intel") || FindString(vendor, "mesa"))
+		{
+			GLCtrl::isAmd = true;
+			GLCtrl::isIntel = true;
+			printf("[DivaImGui] Mesa/Intel detected, applying fixes...\n");
+		}
+		else {
+			printf("[DivaImGui] Unable to indentify gpu : %s\n", vendor.c_str());
+		}
+	}
+
+	void __stdcall hwglBindBuffer(GLenum target, GLuint buffer)
+	{
+		if (GLCtrl::isAmd || GLCtrl::isIntel)
+		{
+			if ((target == GL_VERTEX_PROGRAM_PARAMETER_BUFFER_NV) || (target == GL_FRAGMENT_PROGRAM_PARAMETER_BUFFER_NV))
+			{
+				return;
+			}
+			else return fnGLBindBuffer(target, buffer);
+		}
+	}
+
+	void __stdcall hwglBufferData(GLenum target, GLsizeiptr size, const void* data, GLenum usage)
+	{
+		if (GLCtrl::isAmd || GLCtrl::isIntel)
+		{
+			if ((target == GL_VERTEX_PROGRAM_PARAMETER_BUFFER_NV) || (target == GL_FRAGMENT_PROGRAM_PARAMETER_BUFFER_NV))
+			{
+				return;
+			}
+			else return fnGLBufferData(target, size, data, usage);
+		}
+	}
+
+	void __stdcall hwglBindFramebufferEXT(GLenum target, GLuint framebuffer)
+	{
+		if (framebuffer == 6)
+			framebuffer = 0;
+		fnGLBindFramebufferEXT(target, framebuffer);
+		return;
+	}
+
+	void __stdcall hwglBindTexture(GLenum format, GLuint id)
+	{
+		if (GLCtrl::isAmd || GLCtrl::isIntel)
+		{
+#if _WIN32
+			if (GLCtrl::gamever == 101)
+			{
+				if (id == 29)
+					if (lastprogram == 2045)
+						return fnGLBindTexture(format, 0);
+
+				if (id == 30)
+					if (lastprogram == 2045)
+						return fnGLBindTexture(format, 0);
+
+				if (id == 31)
+					if (lastprogram == 2045)
+						return fnGLBindTexture(format, 0);
+
+				if (id == 32)
+					if (lastprogram == 2045)
+						return fnGLBindTexture(format, 0);
+
+				if (id == 33)
+					if (lastprogram == 2045)
+						return fnGLBindTexture(format, 0);
+
+				if (id == 34)
+					if (lastprogram == 2045)
+						return fnGLBindTexture(format, 0);
+			}
+#endif
+		}
+		return fnGLBindTexture(format, id);
+	}
+
+	void __stdcall hwGLDrawRangeElements(GLenum mode,
+		GLuint start,
+		GLuint end,
+		GLsizei count,
+		GLenum type,
+		const GLvoid* indices)
+	{
+		if (indices == nullptr)
+		{
+			//printf("[DivaImGui] %p is responsible for nulltpr!\n", _ReturnAddress());
+			fnGLDrawRangeElements(mode, start, end, count, type, indices);
+			//glDrawElements(mode, count, type, indices);
+			return;
+		}
+		else {
+			//glDrawElements(mode, count, type, indices);
+			fnGLDrawRangeElements(mode, start, end, count, type, indices);
+			return;
+		}
+	}
+
 	bool catchtexid = false;
 
-	PROC __stdcall hWGlGetProcAddress(LPCSTR L)
+	int __stdcall StubbedFunc(int a = 0, int i = 0, int u = 0, int e = 0, int o = 0)
 	{
-		PROC leproc = wGlGetProcAddress(L);
+		return 1;
+	}
 
+	PROC __stdcall hWGlGetProcAddress(LPCSTR name)
+	{
+		if (!gpuchecked)
+		{
+			InitGpu();
+		}
+
+		PROC leproc = wGlGetProcAddress(name);
+		if (leproc == nullptr)
+		{
+			/*
+			std::string strname = std::string(name);
+			printf("[DivaImGui] %s is nullptr\n", strname.c_str());
+			std::size_t found = strname.find("EXT");
+			if (found != std::string::npos)
+			{
+				strname = StringReplace(strname, "EXT", "");
+				PROC leproc = wGlGetProcAddress(strname.c_str());
+				printf("[DivaImGui] Attempting %s to %s\n", name, strname.c_str());
+			}
+
+			if (found != std::string::npos)
+			{
+				strname = StringReplace(strname, "NV", "");
+				PROC leproc = wGlGetProcAddress(strname.c_str());
+				printf("[DivaImGui] Attempting %s to %s\n", name, strname.c_str());
+			}*/
+			if (leproc == nullptr)
+				leproc = (PROC)*StubbedFunc;
+			else
+			{
+				//printf("[DivaImGui] Redirect %s to %s\n", name, strname.c_str());
+			}
+		}
 		if (!wdetoursf)
 		{
 			wdetoursf = true;
@@ -544,8 +952,63 @@ namespace DivaImGui::GLHook
 			DetourAttach(&(PVOID&)fnGLBindProgramARB, (PVOID)hwglBindProgramARB);
 			DetourTransactionCommit();
 
-			fnDNRefreshShaders();
+			if (GLCtrl::disableSprShader)
+			{
+				fnGLEnable = (GLEnable)*glEnable;
+				printf("[DivaImGui] Hooking glEnable=%p\n", fnGLEnable);
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourAttach(&(PVOID&)fnGLEnable, (PVOID)hwglEnable);
+				DetourTransactionCommit();
+			}
+
 			glewInit();
+
+			if (GLCtrl::isIntel || GLCtrl::isAmd)
+			{
+				fnGLBindBuffer = *glBindBuffer;
+				printf("[DivaImGui] Hooking glBindBuffer=%p\n", fnGLBindBuffer);
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourAttach(&(PVOID&)fnGLBindBuffer, (PVOID)hwglBindBuffer);
+				DetourTransactionCommit();
+
+				fnGLBufferData = *glBufferData;
+				printf("[DivaImGui] Hooking glBufferData=%p\n", fnGLBufferData);
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourAttach(&(PVOID&)fnGLBufferData, (PVOID)hwglBufferData);
+				DetourTransactionCommit();
+			}
+
+			if (GLCtrl::debug)
+			{
+				fnGLDrawRangeElements = (GLDrawRangeElements)wglGetProcAddress("glDrawRangeElements");
+				printf("[DivaImGui] Hooking glDrawRangeElements=%p\n", fnGLDrawRangeElements);
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourAttach(&(PVOID&)fnGLDrawRangeElements, (PVOID)hwGLDrawRangeElements);
+				DetourTransactionCommit();
+
+				fnGLBindTexture = *glBindTexture;
+				printf("[DivaImGui] fnGLBindTexture=%p\n", glBindTexture);
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourAttach(&(PVOID&)fnGLBindTexture, (PVOID)hwglBindTexture);
+				DetourTransactionCommit();
+
+
+				fnGLBindFramebufferEXT = *glBindFramebufferEXT;
+				printf("[DivaImGui] fnGLBindFramebufferEXT=%p\n", fnGLBindFramebufferEXT);
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourAttach(&(PVOID&)fnGLBindFramebufferEXT, (PVOID)hwglBindFramebufferEXT);
+				DetourTransactionCommit();
+			}
+			else glewInit();
+
+			fnDNRefreshShaders();
+
 		}
 		return leproc;
 	}
@@ -607,14 +1070,14 @@ namespace DivaImGui::GLHook
 	static bool init2 = false;
 	void GLCtrl::Update(HDC hdc)
 	{
-		if (GLCtrl::Enabled == false)
-			return;
+		if (!GLCtrl::isAmd && !GLCtrl::isIntel)
+			if (GLCtrl::Enabled == false)
+				return;
 
 		fnGLSwapBuffers = (GLSwapBuffers)GLCtrl::fnuglswapbuffer;
 		if (!GLCtrl::Initialized)
 		{
 			LoadConfig();
-
 			{
 				wGlGetProcAddress = (WGlGetProcAddress)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglGetProcAddress");
 				printf("[DivaImGui] wGlGetProcAddress=%p\n", wGlGetProcAddress);
@@ -623,7 +1086,7 @@ namespace DivaImGui::GLHook
 				DetourAttach(&(PVOID&)wGlGetProcAddress, (PVOID)hWGlGetProcAddress);
 				DetourTransactionCommit();
 			}
-			
+
 			GLCtrl::Initialized = true;
 		}
 		else {
@@ -640,4 +1103,4 @@ namespace DivaImGui::GLHook
 			refreshshd = 0;
 		}
 	}
-}
+	}
