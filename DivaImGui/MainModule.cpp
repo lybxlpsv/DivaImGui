@@ -43,6 +43,7 @@ namespace DivaImGui
 			std::string aftv101 = "1.01";
 			std::string aftv710 = "7.10";
 			std::string* value;
+			bool forceLightweight = false;
 
 			if (resolutionConfig.TryGetValue("shaderpatch", &value))
 			{
@@ -68,6 +69,13 @@ namespace DivaImGui
 					GLHook::GLCtrl::isIntel = true;
 			}
 
+
+			if (resolutionConfig.TryGetValue("forceLightweight", &value))
+			{
+				if (*value == "1")
+					forceLightweight = true;
+			}
+
 			if (resolutionConfig.TryGetValue("lybdbg", &value))
 			{
 				if (*value == "1")
@@ -80,7 +88,17 @@ namespace DivaImGui
 					GLHook::GLCtrl::shaderaftmodified = true;
 			}
 
-			if (resolutionConfig.TryGetValue("version", &value))
+			if (forceLightweight)
+			{
+				if (resolutionConfig.TryGetValue("version", &value))
+				{
+					double version = std::stod(*value);
+					int iv = (version * 100);
+					GLHook::GLCtrl::gamever = iv;
+				}
+				printf("[DivaImGui] Using Universal Mode!\n");
+				glcomplight.Initialize();
+			} else if (resolutionConfig.TryGetValue("version", &value))
 			{
 				double version = std::stod(*value);
 				int iv = (version * 100);
