@@ -487,7 +487,7 @@ namespace DivaImGui::GLHook
 			if (patch.cfg.length() == 0 || // patch has no config setting
 				(configMap.find(patch.cfg) != configMap.end() && configMap[patch.cfg].first != "0")) // patch has a toggle and is not set to 0
 			{
-				if (GLCtrl::Enabled == false)
+				if (GLCtrl::Enabled == true)
 					cfgMatches = true;
 			}
 
