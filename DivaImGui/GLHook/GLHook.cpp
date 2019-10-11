@@ -494,8 +494,7 @@ namespace DivaImGui::GLHook
 
 			if (patch.cfg == "amd")
 				if (GLCtrl::isAmd)
-					if (!GLCtrl::isIntel)
-						cfgMatches = true;
+					cfgMatches = true;
 
 			if (patch.cfg == "intel")
 				if (GLCtrl::isIntel)
@@ -657,7 +656,7 @@ namespace DivaImGui::GLHook
 				shaderLoaded = snappy::Uncompress((char*)pda600, sizeof(pda600), &outputstr);
 				loadShaderNameFromMemory(outputstr);
 				free(output);
-		}
+			}
 #endif
 			if ((!GLCtrl::shaderaftmodified) && !shaderLoaded)
 				printf("[DivaImGui] shadernames.txt missing!\n");
@@ -669,7 +668,7 @@ namespace DivaImGui::GLHook
 			int patches = patchesVec.size();
 			printf("[DivaImGui] Configs Loaded! Shd=%d Patch=%d\n", shaders, patches);
 			return;
-	}
+		}
 		std::string line;
 
 		while (std::getline(fileStream, line))
@@ -700,7 +699,7 @@ namespace DivaImGui::GLHook
 		int shaders = shaderNamesVec.size();
 		int patches = patchesVec.size();
 		printf("[DivaImGui] Configs Loaded! Shd=%d Patch=%d\n", shaders, patches);
-}
+	}
 
 	static bool shdInitialized = false;
 	void __stdcall hwglProgramStringARB(GLenum target, GLenum format, GLsizei len, const void* pointer)
@@ -776,7 +775,7 @@ namespace DivaImGui::GLHook
 		}
 		else if (FindString(vendor, "intel") || FindString(vendor, "mesa"))
 		{
-			GLCtrl::isAmd = true;
+			GLCtrl::isAmd = false;
 			GLCtrl::isIntel = true;
 			printf("[DivaImGui] Mesa/Intel detected, applying fixes...\n");
 		}
@@ -1111,4 +1110,4 @@ namespace DivaImGui::GLHook
 			refreshshd = 0;
 		}
 	}
-	}
+}
