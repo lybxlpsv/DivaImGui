@@ -882,6 +882,9 @@ namespace DivaImGui::GLHook
 
 	PROC __stdcall hWGlGetProcAddress(LPCSTR name)
 	{
+		PROC leproc = wGlGetProcAddress(name);
+		//printf("%s\n", name);
+
 		if (!gpuchecked)
 		{
 			if (!GLCtrl::disableGpuDetect)
@@ -890,8 +893,6 @@ namespace DivaImGui::GLHook
 			LoadConfig();
 			gpuchecked = true;
 		}
-
-		PROC leproc = wGlGetProcAddress(name);
 
 		if (!GLCtrl::isAmd && !GLCtrl::isIntel)
 			if (GLCtrl::Enabled == false)
@@ -972,18 +973,18 @@ namespace DivaImGui::GLHook
 				DetourTransactionCommit();
 			}
 
-			glewInit();
+			//glewInit();
 
 			if (GLCtrl::isIntel || GLCtrl::isAmd)
 			{
-				fnGLBindBuffer = *glBindBuffer;
+				fnGLBindBuffer = (PFNGLBINDBUFFERPROC)wglGetProcAddress("glBindBuffer");
 				printf("[DivaImGui] Hooking glBindBuffer=%p\n", fnGLBindBuffer);
 				DetourTransactionBegin();
 				DetourUpdateThread(GetCurrentThread());
 				DetourAttach(&(PVOID&)fnGLBindBuffer, (PVOID)hwglBindBuffer);
 				DetourTransactionCommit();
 
-				fnGLBufferData = *glBufferData;
+				fnGLBufferData = (PFNGLBUFFERDATAPROC)wglGetProcAddress("glBufferData");
 				printf("[DivaImGui] Hooking glBufferData=%p\n", fnGLBufferData);
 				DetourTransactionBegin();
 				DetourUpdateThread(GetCurrentThread());
@@ -993,6 +994,7 @@ namespace DivaImGui::GLHook
 
 			if (GLCtrl::debug)
 			{
+				glewInit();
 				fnGLDrawRangeElements = (GLDrawRangeElements)wglGetProcAddress("glDrawRangeElements");
 				printf("[DivaImGui] Hooking glDrawRangeElements=%p\n", fnGLDrawRangeElements);
 				DetourTransactionBegin();

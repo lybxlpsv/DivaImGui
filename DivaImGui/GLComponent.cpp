@@ -1167,7 +1167,7 @@ namespace DivaImGui
 
 			if (MainModule::DivaWindowHandle == NULL)
 				return;
-
+			glewInit();
 			InitializeImGui();
 		}
 
@@ -1983,7 +1983,7 @@ namespace DivaImGui
 				DetourTransactionCommit();
 			}
 			*/
-			glewInit();
+			//glewInit();
 		}
 		/*
 		if (L == "glShaderSource")

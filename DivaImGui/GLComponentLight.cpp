@@ -489,7 +489,7 @@ namespace DivaImGui::VLight
 
 	void GLComponentLight::Initialize()
 	{
-		glewInit();
+		//glewInit();
 		fnGLSwapBuffers = (GLSwapBuffers)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglSwapBuffers");
 		printf("[DivaImGui] glSwapBuffers=%p\n", fnGLSwapBuffers);
 		DetourTransactionBegin();
