@@ -2034,6 +2034,10 @@ namespace DivaImGui
 		GLHook::GLCtrl::fnuglswapbuffer = (void*)*fnGLSwapBuffers;
 		GLHook::GLCtrl::Update(NULL);
 
+		void* ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.dva"), "ReshadeRender");
+		if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"opengl32.dll"), "ReshadeRender");
+		//printf("[DivaImGui] ReshadeRender=%p\n", ptr);
+		if (ptr != nullptr)
 		{
 			wGlGetProcAddress = (WGlGetProcAddress)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglGetProcAddress");
 			printf("[DivaImGui] wGlGetProcAddress=%p\n", wGlGetProcAddress);
