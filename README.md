@@ -8,6 +8,8 @@ An in-game UI which can be used with [TLAC](https://github.com/samyuu/TotallyLeg
 
 [Development Build](https://ci.appveyor.com/project/lybxlpsv/divaimgui/build/artifacts) (Use this when using latest development build of PD Loader)
 
+[Guide for AMD/Intel (u)HD users](https://github.com/lybxlpsv/DivaImGui/wiki/AMD-and-Intel-Guide)
+
 # Special Thanks
 
-[Samyuu](https://github.com/samyuu/) (for TLAC), [BesuBaru](https://github.com/BesuBaru), [Raki Saionji](https://github.com/rakisaionji) (for 1.01 memory address).
+[Samyuu](https://github.com/samyuu/) (for TLAC), [BesuBaru](https://github.com/BesuBaru), [somewhatlurker](https://github.com/somewhatlurker), [Raki Saionji](https://github.com/rakisaionji).
