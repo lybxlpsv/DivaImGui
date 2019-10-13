@@ -49,7 +49,7 @@ namespace DivaImGui
 	typedef PROC(__stdcall* WGlGetProcAddress)(LPCSTR);
 	typedef int(__stdcall* PDGetFramerate)(void);
 	typedef void(__stdcall* PDSetFramerate)(int);
-	typedef void	(__stdcall* DNInitialize)(int);
+	typedef void(__stdcall* DNInitialize)(int);
 	typedef int(__stdcall* DNRefreshShaders)(void);
 	typedef int(__stdcall* DNProcessShader)(int, int, int, int, int);
 	typedef int(__stdcall* ReshadeRender)();
@@ -1273,6 +1273,19 @@ namespace DivaImGui
 			ImGui::Text("Press Ctrl+LShift+Backspace to show/hide UI.");
 			ImGui::End();
 		}
+		if (GLHook::GLCtrl::ShdState == GLHook::Busy)
+		{
+			ImGuiWindowFlags window_flags = 0;
+			window_flags |= ImGuiWindowFlags_NoMove;
+			window_flags |= ImGuiWindowFlags_NoResize;
+			window_flags |= ImGuiWindowFlags_NoTitleBar;
+			window_flags |= ImGuiWindowFlags_NoCollapse;
+			window_flags |= ImGuiWindowFlags_AlwaysAutoResize;
+			ImGui::Begin("ELAC", &p_open, window_flags);
+			ImGui::SetWindowPos(ImVec2(0, 0));
+			ImGui::Text("Compiling Shaders... %d", GLHook::GLCtrl::ShaderPatchPos);
+			ImGui::End();
+		}
 
 		ImGuiWindowFlags window_flags = 0;
 		window_flags |= ImGuiWindowFlags_NoMove;
@@ -2023,14 +2036,14 @@ namespace DivaImGui
 		*/
 
 		//fnDNInitialize();
-		
+
 		fnGLSwapBuffers = (GLSwapBuffers)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglSwapBuffers");
 		printf("[DivaImGui] glSwapBuffers=%p\n", fnGLSwapBuffers);
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach(&(PVOID&)fnGLSwapBuffers, (PVOID)hwglSwapBuffers);
 		DetourTransactionCommit();
-		
+
 		GLHook::GLCtrl::fnuglswapbuffer = (void*)*fnGLSwapBuffers;
 		GLHook::GLCtrl::Update(NULL);
 
@@ -2046,6 +2059,6 @@ namespace DivaImGui
 			DetourAttach(&(PVOID&)wGlGetProcAddress, (PVOID)hWGlGetProcAddress);
 			DetourTransactionCommit();
 		}
-		
+
 	}
 }

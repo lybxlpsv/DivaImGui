@@ -316,6 +316,20 @@ namespace DivaImGui::VLight
 			ImGui::End();
 		}
 
+		if (GLHook::GLCtrl::ShdState == GLHook::Busy)
+		{
+			ImGuiWindowFlags window_flags = 0;
+			window_flags |= ImGuiWindowFlags_NoMove;
+			window_flags |= ImGuiWindowFlags_NoResize;
+			window_flags |= ImGuiWindowFlags_NoTitleBar;
+			window_flags |= ImGuiWindowFlags_NoCollapse;
+			window_flags |= ImGuiWindowFlags_AlwaysAutoResize;
+			ImGui::Begin("ELAC", &p_open, window_flags);
+			ImGui::SetWindowPos(ImVec2(0, 0));
+			ImGui::Text("Compiling Shaders... %d", GLHook::GLCtrl::ShaderPatchPos);
+			ImGui::End();
+		}
+
 		ImGuiWindowFlags window_flags = 0;
 		window_flags |= ImGuiWindowFlags_NoMove;
 		window_flags |= ImGuiWindowFlags_NoResize;

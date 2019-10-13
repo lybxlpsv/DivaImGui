@@ -69,6 +69,12 @@ namespace DivaImGui
 					GLHook::GLCtrl::disableGpuDetect = true;
 			}
 
+			if (resolutionConfig.TryGetValue("patchAsGameLoads", &value))
+			{
+				if (*value == "1")
+					GLHook::GLCtrl::patchAsGameLoads = true;
+			}
+
 			if (resolutionConfig.TryGetValue("disableSprShaders", &value))
 			{
 				if (*value == "1")

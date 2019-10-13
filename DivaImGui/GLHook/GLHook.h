@@ -28,6 +28,8 @@ namespace DivaImGui::GLHook
 		std::string file;
 	};
 
+	enum iState { Busy, Idle };
+
 	class GLCtrl
 	{
 
@@ -42,6 +44,9 @@ namespace DivaImGui::GLHook
 		static bool disableGpuDetect;
 		static bool disableSprShader;
 		static bool debug;
+		static iState ShdState;
+		static int ShaderPatchPos;
+		static bool patchAsGameLoads;
 		static void* fnuglswapbuffer;
 		static void Update(HDC hdc);
 	};

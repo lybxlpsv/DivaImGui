@@ -16,12 +16,18 @@
 #include <stdint.h>
 #include <fstream>
 #include <snappy/snappy.h>
-
+#include <chrono>
 #include <intrin.h>
 #pragma intrinsic(_ReturnAddress)
 
 namespace DivaImGui::GLHook
 {
+	typedef std::chrono::time_point<std::chrono::steady_clock> steady_clock;
+	typedef std::chrono::high_resolution_clock high_resolution_clock;
+
+	steady_clock start;
+	steady_clock end;
+
 	typedef void(__stdcall* GLShaderSource)(GLuint, GLsizei, const GLchar**, const GLint*);
 	typedef void(__stdcall* GLShaderSourceARB)(GLhandleARB, GLsizei, const GLcharARB**, const GLint*);
 	typedef void(__stdcall* GLProgramStringARB)(GLenum, GLenum, GLsizei, const void*);
@@ -54,6 +60,8 @@ namespace DivaImGui::GLHook
 	bool GLCtrl::debug = false;
 	bool GLCtrl::disableGpuDetect = false;
 	bool GLCtrl::disableSprShader = false;
+	bool GLCtrl::patchAsGameLoads = false;
+	iState GLCtrl::ShdState = Idle;
 	static HINSTANCE hGetProcIDDLL;
 	static bool gpuchecked = false;
 
@@ -67,6 +75,8 @@ namespace DivaImGui::GLHook
 	std::vector<shaderNames> shaderNamesVec;
 	typedef std::pair<std::string, std::string> strpair;
 	std::map<std::string, strpair> configMap;
+
+	
 
 	inline int dirExists(const char* path)
 	{
@@ -746,7 +756,8 @@ namespace DivaImGui::GLHook
 			allocatedshaders[allocatedshadercount] = lastprogram;
 			int curpos = allocatedshadercount;
 			allocatedshadercount++;
-
+			if (GLCtrl::patchAsGameLoads)
+				return fnGLProgramStringARB(target, format, len, pointer);
 			int newlen = fnDNProcessShader(pointer, allocshdptr[curpos], len, target, lastprogram);
 			if (newlen == -1)
 				return fnGLProgramStringARB(target, format, len, pointer);
@@ -1025,14 +1036,27 @@ namespace DivaImGui::GLHook
 		return leproc;
 	}
 
-	void RefreshShaders(HDC hdc = NULL)
+	int GLCtrl::ShaderPatchPos = 0;
+	static bool PatchComplete = false;
+
+	void RefreshShaders(HDC hdc = NULL, bool continuePatch = false, int time = 0)
 	{
 		PatchedCounter = 0;
-		fnDNRefreshShaders();
+		if (!continuePatch)
+			fnDNRefreshShaders();
 
 		glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
 		int counter = 0;
-		for (int i = 0; i < allocatedshadercount; i++)
+
+		int currentState = 0;
+
+		if (continuePatch)
+		{
+			currentState = GLCtrl::ShaderPatchPos;
+			start = high_resolution_clock::now();
+		}
+
+		for (int i = currentState; i < allocatedshadercount; i++)
 		{
 			if (allocatedshaders[i] != 1)
 			{
@@ -1047,6 +1071,14 @@ namespace DivaImGui::GLHook
 				counter++;
 				if (counter == 251)
 					counter = 0;
+
+				if (continuePatch)
+					if (((float)(std::chrono::duration_cast<std::chrono::microseconds>(high_resolution_clock::now() - start).count() / 1000.0f)) > time)
+					{
+						GLCtrl::ShaderPatchPos = i;
+						return;
+					}
+
 				if ((hdc != NULL) && (counter == 250))
 				{
 					DisableProcessWindowsGhosting();
@@ -1077,9 +1109,12 @@ namespace DivaImGui::GLHook
 				}
 			}
 		}
-		printf("[DivaImGui] Patched %d Shaders\n", PatchedCounter);
+		PatchComplete = true;
+		if (!continuePatch)
+			printf("[DivaImGui] Patched %d Shaders\n", PatchedCounter);
 	}
 	static bool init2 = false;
+	static bool init3 = false;
 	void GLCtrl::Update(HDC hdc)
 	{
 		fnGLSwapBuffers = (GLSwapBuffers)GLCtrl::fnuglswapbuffer;
@@ -1104,10 +1139,51 @@ namespace DivaImGui::GLHook
 			}
 		}
 
+		if ((init2) && (!init3))
+		{
+			if (GLCtrl::patchAsGameLoads)
+			{
+				if (!GLCtrl::ShdState == Busy)
+					GLCtrl::ShaderPatchPos = 0;
+				GLCtrl::ShdState = Busy;
+				if (!PatchComplete)
+				{
+					RefreshShaders(NULL, true, 50);
+				}
+				else {
+					GLCtrl::ShdState = Idle;
+					init3 = true;
+				}
+			}
+		}
+
 		if (refreshshd == 1)
 		{
 			RefreshShaders(hdc);
 			refreshshd = 0;
+			/*
+			if (GLCtrl::patchAsGameLoads)
+			{
+				if (!GLCtrl::ShdState == Busy)
+				{
+					GLCtrl::ShaderPatchPos = 0;
+					PatchComplete = false;
+				}
+				GLCtrl::ShdState = Busy;
+				if (!PatchComplete)
+				{
+					RefreshShaders(NULL, true, 10);
+				}
+				else {
+					GLCtrl::ShdState = Idle;
+					refreshshd = 0;
+				}
+			}
+			else {
+				RefreshShaders(hdc);
+				refreshshd = 0;
+			}
+			*/
 		}
 	}
 }
