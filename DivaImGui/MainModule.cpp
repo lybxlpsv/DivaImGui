@@ -149,8 +149,8 @@ namespace DivaImGui
 	{
 		if (moduleDirectory == nullptr)
 		{
-			CHAR modulePathBuffer[MAX_PATH];
-			GetModuleFileNameA(MainModule::Module, modulePathBuffer, MAX_PATH);
+			WCHAR modulePathBuffer[MAX_PATH];
+			GetModuleFileNameW(MainModule::Module, modulePathBuffer, MAX_PATH);
 
 			fspath configPath = fspath(modulePathBuffer).parent_path();
 			moduleDirectory = new std::string(configPath.u8string());
