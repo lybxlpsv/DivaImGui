@@ -51,12 +51,21 @@ namespace DivaImGui::FileSystem
 	{
 		std::string line;
 
+		// check for BOM
+		std::getline(fileStream, line);
+		if (line.size() >= 3 && line.rfind("\xEF\xBB\xBF", 0) == 0)
+			fileStream.seekg(3);
+		else
+			fileStream.seekg(0);
+
 		while (std::getline(fileStream, line))
 		{
 			if (IsComment(line))
 				continue;
 
 			auto splitline = Utilities::Split(line, "=");
+			if (splitline.size() < 2)
+				continue;
 
 			for (auto &line : splitline)
 				Utilities::Trim(line);
@@ -67,6 +76,6 @@ namespace DivaImGui::FileSystem
 
 	bool ConfigFile::IsComment(const std::string &line)
 	{
-		return line.size() <= 0 || line[0] == '#' || line._Starts_with("//");
+		return line.size() <= 0 || line[0] == '#' || line[0] == '[' || (line.size() >= 2 && line.rfind("//", 0) == 0);
 	}
 }

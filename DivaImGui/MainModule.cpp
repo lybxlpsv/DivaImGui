@@ -81,7 +81,6 @@ namespace DivaImGui
 					GLHook::GLCtrl::disableSprShader = true;
 			}
 
-
 			if (resolutionConfig.TryGetValue("forceLightweight", &value))
 			{
 				if (*value == "1")

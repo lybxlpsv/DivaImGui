@@ -22,12 +22,12 @@ namespace DivaImGui::FileSystem
 
 	bool TextFile::OpenRead()
 	{
-		fs::path configPath(FileName);
+		fs::path configPath = fs::u8path(FileName);
 
 		if (!fs::exists(configPath))
 			return false;
 
-		std::ifstream fileStream(configPath.string().c_str());
+		std::ifstream fileStream(configPath.wstring().c_str());
 		
 		if (!fileStream.is_open())
 			return false;
