@@ -76,8 +76,6 @@ namespace DivaImGui::GLHook
 	typedef std::pair<std::string, std::string> strpair;
 	std::map<std::string, strpair> configMap;
 
-	
-
 	inline int dirExists(const char* path)
 	{
 		struct stat info;
@@ -267,7 +265,6 @@ namespace DivaImGui::GLHook
 
 		fileStream.close();
 	}
-
 
 	void __stdcall hwglShaderSource(GLuint shader, GLsizei count, const GLchar** string, const GLint* length)
 	{
