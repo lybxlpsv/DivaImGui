@@ -23,6 +23,8 @@
 #include "FileSystem/ConfigFile.h"
 #include "Constants.h"
 
+#include "DX11\systemclass.h"
+#include "DX11\graphicsclass.h"
 #include "Keyboard/Keyboard.h"
 #include "detours/detours.h"
 #include "tchar.h"
@@ -37,6 +39,8 @@ namespace DivaImGui
 
 	steady_clock start;
 	steady_clock end;
+	steady_clock start_dx11 = high_resolution_clock::now();
+	steady_clock end_dx11 = high_resolution_clock::now();
 
 	// Function prototype
 	typedef BOOL(__stdcall* GLSwapBuffers)(HDC);
@@ -48,6 +52,7 @@ namespace DivaImGui
 	typedef GLenum(__stdcall* GLGetError)();
 	typedef PROC(__stdcall* WGlGetProcAddress)(LPCSTR);
 	typedef int(__stdcall* PDGetFramerate)(void);
+	typedef void(__stdcall* PDChangeHandle)(HWND);
 	typedef void(__stdcall* PDSetFramerate)(int);
 	typedef void(__stdcall* DNInitialize)(int);
 	typedef int(__stdcall* DNRefreshShaders)(void);
@@ -55,11 +60,13 @@ namespace DivaImGui
 	typedef int(__stdcall* ReshadeRender)();
 	typedef bool(__stdcall* WGLDXUnlockObjectsNV)(HANDLE, GLint, HANDLE*);
 	typedef bool(__stdcall* WGLDXlockObjectsNV)(HANDLE, GLint, HANDLE*);
+	__int64(__fastcall* divaEngineUpdate)(__int64 a1) = (__int64(__fastcall*)(__int64 a1))0x140194CD0;
 	//typedef std::chrono::nanoseconds*(__stdcall* PDGetFrameratePtr)(void);
 	// Function pointer
 	GLSwapBuffers fnGLSwapBuffers;
 	PDGetFramerate getFrameratePD;
 	PDSetFramerate setFrameratePD;
+	PDChangeHandle changeHandlePD;
 	GLShaderSource fnGLShaderSource;
 	GLShaderSourceARB fnGLShaderSourceARB;
 	GLProgramStringARB fnGLProgramStringARB;
@@ -185,6 +192,7 @@ namespace DivaImGui
 	//typedef PROC(*func_wglGetProcAddress_t) (LPCSTR lpszProc);
 	//static func_wglGetProcAddress_t _wglGetProcAddress;
 	//func_wglGetProcAddress_t	owglGetProcAddress;
+	SystemClass* System;
 
 	uint64_t hookTramp = NULL;
 
@@ -256,7 +264,7 @@ namespace DivaImGui
 	};
 
 	static bool dxgi = false;
-	static bool dxgidraw = false;
+	static bool dxgi_init = false;
 
 	static int frames = 10;
 
@@ -582,23 +590,21 @@ namespace DivaImGui
 	}
 	//SystemClass* System;
 
-	/*
 	void InitializeDX11Window()
 	{
 		bool result;
-
 		// Create the system object.
-		//System = new SystemClass;
-		//if (!System)
+		System = new SystemClass;
+		result = System->Initialize();
+		if (!System)
 		{
-			printf("dx11: NG");
+			printf("[DivaImGui] DX11: NG\n");
 			return;
 		}
-		printf("dx11: Initializedd");
+		printf("[DivaImGui] DX11: Initialized\n");
 		// Initialize and run the system object.
-		result = System->Initialize();
 	}
-	*/
+
 
 	void InitializeImGui()
 	{
@@ -633,153 +639,20 @@ namespace DivaImGui
 		defaultAetFrameDuration = *(float*)AET_FRAME_DURATION_ADDRESS;
 
 		fprintf(stdout, "[DivaImGui] Using GLEW %s\n", glewGetString(GLEW_VERSION));
+		MainModule::DivaWindowHandle = FindWindow(0, MainModule::DivaWindowName);
+		if (MainModule::DivaWindowHandle == NULL)
+			MainModule::DivaWindowHandle = FindWindow(0, MainModule::GlutDefaultName);
 
-		DivaImGui::FileSystem::ConfigFile resolutionConfig(MainModule::GetModuleDirectory(), RESOLUTION_CONFIG_FILE_NAME.c_str());
-		bool success = resolutionConfig.OpenRead();
-		if (!success)
+		if (MainModule::DivaWindowHandle == NULL)
+			MainModule::DivaWindowHandle = FindWindow(0, MainModule::freeGlutDefaultName);
+
+		if (MainModule::DivaWindowHandle != NULL)
 		{
-			printf("[DivaImGui] Unable to parse %s\n", RESOLUTION_CONFIG_FILE_NAME.c_str());
+			//SetWindowTextA(MainModule::DivaWindowHandle, "NULL");
 		}
 
-		if (success) {
-			std::string trueString = "1";
-			std::string* value;
-			if (resolutionConfig.TryGetValue("fpsLimit", &value))
-			{
-				DivaImGui::MainModule::fpsLimitSet = std::stoi(*value);
-			}
-			if (resolutionConfig.TryGetValue("MLAA", &value))
-			{
-				if (*value == trueString)
-					morphologicalAA = true;
-			}
-			if (resolutionConfig.TryGetValue("TAA", &value))
-			{
-				if (*value == trueString)
-					temporalAA = true;
-			}
-			if (resolutionConfig.TryGetValue("frm", &value))
-			{
-				if (*value == trueString)
-					frameratemanager = true;
-
-				if (*value == "2")
-					frameratemanagerdbg = true;
-			}
-			if (resolutionConfig.TryGetValue("motifrm", &value))
-			{
-				frametime = std::stoi(*value);
-			}
-			if (resolutionConfig.TryGetValue("toonShaderWorkaround", &value))
-			{
-				if (*value == trueString)
-					toonShader = true;
-			}
-			if (resolutionConfig.TryGetValue("ReShadeState", &value))
-			{
-				ReShadeState = std::stoi(*value);
-			}
-			if (resolutionConfig.TryGetValue("NoCardWorkaround", &value))
-			{
-				if (*value == trueString)
-					NoCardWorkaround = true;
-			}
-			if (resolutionConfig.TryGetValue("forceToonShader", &value))
-			{
-				if (*value == trueString)
-					forcetoonShader = true;
-			}
-			if (resolutionConfig.TryGetValue("forceDisbleToonShaderOutline", &value))
-			{
-				if (*value == trueString)
-					forceDisableToonShaderOutline = true;
-			}
-			if (resolutionConfig.TryGetValue("forcevsyncfpslimit", &value))
-			{
-				if (*value == trueString)
-					force_fpslimit_vsync = true;
-			}
-			if (resolutionConfig.TryGetValue("fbWidth", &value))
-			{
-				*(int*)FB_RESOLUTION_WIDTH_ADDRESS = std::stoi(*value);
-			}
-			if (resolutionConfig.TryGetValue("fbHeight", &value))
-			{
-				*(int*)FB_RESOLUTION_HEIGHT_ADDRESS = std::stoi(*value);
-			}
-			if (resolutionConfig.TryGetValue("depthCopy", &value))
-			{
-				if (*value == trueString)
-					copydepth = true;
-			}
-			if (resolutionConfig.TryGetValue("disableDof", &value))
-			{
-				if (*value == trueString)
-					*(int*)0x00000001411AB650 = 1;
-			}
-			if (resolutionConfig.TryGetValue("showFps", &value))
-			{
-				if (*value == trueString)
-					showFps = true;
-			}
-			if (resolutionConfig.TryGetValue("scaling", &value))
-			{
-				if (*value == trueString)
-					scaling = true;
-			}
-			if (resolutionConfig.TryGetValue("dbg", &value))
-			{
-				if (*value == trueString)
-					lybdbg = true;
-			}
-			if (resolutionConfig.TryGetValue("Vsync", &value))
-			{
-				if (*value == trueString)
-					vsync = true;
-				else
-				{
-					vsync = false;
-					lastvsync = true;
-					fpsLimitBak = DivaImGui::MainModule::fpsLimitSet;
-				}
-			}
-			if (resolutionConfig.TryGetValue("glswapinterval", &value))
-			{
-				swapinterval = std::stoi(*value);
-			}
-			if (resolutionConfig.TryGetValue("customRes", &value))
-			{
-				if (*value == trueString)
-				{
-					int maxWidth = 2560;
-					int maxHeight = 1440;
-					printf("\n");
-					if (resolutionConfig.TryGetValue("maxWidth", &value))
-					{
-						maxWidth = std::stoi(*value);
-						printf(value->c_str());
-					}
-					printf("x");
-					if (resolutionConfig.TryGetValue("maxHeight", &value))
-					{
-						maxHeight = std::stoi(*value);
-						printf(value->c_str());
-					}
-					{
-						DWORD oldProtect, bck;
-						VirtualProtect((BYTE*)0x00000001409B8B68, 4, PAGE_EXECUTE_READWRITE, &oldProtect);
-						*((int*)0x00000001409B8B68) = maxWidth;
-						VirtualProtect((BYTE*)0x00000001409B8B68, 6, oldProtect, &bck);
-					}
-					{
-						DWORD oldProtect, bck;
-						VirtualProtect((BYTE*)0x00000001409B8B6C, 4, PAGE_EXECUTE_READWRITE, &oldProtect);
-						*((int*)0x00000001409B8B6C) = maxHeight;
-						VirtualProtect((BYTE*)0x00000001409B8B6C, 6, oldProtect, &bck);
-					}
-				}
-			}
-		}
+		if (dxgi)
+			MainModule::DivaWindowHandle = System->m_hwnd;
 
 		for (int i = 0; i < 1000; i++)
 		{
@@ -1524,9 +1397,11 @@ namespace DivaImGui
 
 				ImGui::InputInt("to read", &toread);
 				*/
-				/*
+
 				if (dxgi)
-				ImGui::Checkbox("dxgi", &dxgidraw);
+					ImGui::Checkbox("dxgi", &dxgi);
+
+				/*
 				ImGui::InputInt("", (int*)0x000000014CD93788);
 				if (ImGui::Button("sub_14058AA70")) {
 				typedef void sub_(__int64);
@@ -1587,8 +1462,16 @@ namespace DivaImGui
 			ImGui::Begin("FPS", &p_open, window_flags);
 			ImGui::SetWindowPos(ImVec2(hWindow.right - 100, 0));
 			ImGui::SetWindowSize(ImVec2(100, 70));
-			ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
-			ImGui::Text("FT: %.2fms", 1000 / ImGui::GetIO().Framerate);
+			if (dxgi)
+			{
+				ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+				ImGui::Text("DX: %.2fms", ((float)(chrono::duration_cast<std::chrono::microseconds>(start - end).count()) / 1000));
+			}
+			else {
+				ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+				ImGui::Text("FT: %.2fms", 1000 / ImGui::GetIO().Framerate);
+			}
+
 			ImGui::End();
 		}
 
@@ -1650,6 +1533,7 @@ namespace DivaImGui
 		{
 			if (!lastvsync) {
 				wglSwapIntervalEXT(swapinterval);
+				GraphicsClass::VSYNC_ENABLED = true;
 				if (!force_fpslimit_vsync) {
 					fpsLimitBak = DivaImGui::MainModule::fpsLimitSet;
 					DivaImGui::MainModule::fpsLimitSet = 0;
@@ -1659,6 +1543,7 @@ namespace DivaImGui
 		}
 		else {
 			if (lastvsync) {
+				GraphicsClass::VSYNC_ENABLED = false;
 				if (!force_fpslimit_vsync) {
 					DivaImGui::MainModule::fpsLimitSet = fpsLimitBak;
 				}
@@ -1667,13 +1552,59 @@ namespace DivaImGui
 			}
 		}
 
-		//if (dxgidraw)
-		//System->Run();
+		if (dxgi)
+		{
+			start_dx11 = high_resolution_clock::now();
+			System->Run();
+			end_dx11 = high_resolution_clock::now();
+		}
 		start = high_resolution_clock::now();
+	}
+	HWND ActualDivaWindowHandle;
+
+	void UpdateDiva()
+	{
+		while (true)
+		{
+
+		}
 	}
 
 	BOOL __stdcall hwglSwapBuffers(_In_ HDC hDc)
 	{
+		
+		if (dxgi)
+		{
+			GraphicsClass::currentHdc = hDc;
+			if (!dxgi_init)
+			{
+				ActualDivaWindowHandle = FindWindow(0, MainModule::DivaWindowName);
+				if (ActualDivaWindowHandle == NULL)
+					ActualDivaWindowHandle = FindWindow(0, MainModule::GlutDefaultName);
+
+				if (ActualDivaWindowHandle == NULL)
+					ActualDivaWindowHandle = FindWindow(0, MainModule::freeGlutDefaultName);
+				;
+				changeHandlePD = (PDChangeHandle)GetProcAddress(GetModuleHandle(L"TLAC.dva"), "ChangeDivaWindowHandle");
+
+				RECT desktop;
+				const HWND hDesktop = GetDesktopWindow();
+				GetWindowRect(hDesktop, &desktop);
+				SetWindowLongPtr(ActualDivaWindowHandle, GWL_STYLE, WS_VISIBLE | WS_POPUP);
+				SetWindowPos(ActualDivaWindowHandle, HWND_BOTTOM, 0, 0, desktop.right, desktop.bottom, SWP_NOCOPYBITS | SWP_NOSENDCHANGING | SWP_SHOWWINDOW);
+
+				if (&changeHandlePD != nullptr)
+				{
+					InitializeDX11Window();
+					changeHandlePD(System->m_hwnd);
+					dxgi_init = true;
+				}
+
+			}
+
+
+		}
+
 		if (shaderafthookd)
 			if (ReShadeState == 1)
 				if (*fnReshadeRender != nullptr)
@@ -1689,9 +1620,10 @@ namespace DivaImGui
 					}
 				}
 		RenderGUI();
-		bool result = fnGLSwapBuffers(hDc);
+		if (!dxgi_init)
+			bool result = fnGLSwapBuffers(hDc);
 		GLHook::GLCtrl::Update(hDc);
-		return result;
+		return true;
 	}
 
 	void __stdcall hwglShaderSource(GLuint shader, GLsizei count, const GLchar** string, const GLint* length)
@@ -2060,5 +1992,170 @@ namespace DivaImGui
 			DetourTransactionCommit();
 		}
 
+		DivaImGui::FileSystem::ConfigFile resolutionConfig(MainModule::GetModuleDirectory(), RESOLUTION_CONFIG_FILE_NAME.c_str());
+		bool success = resolutionConfig.OpenRead();
+		if (!success)
+		{
+			printf("[DivaImGui] Unable to parse %s\n", RESOLUTION_CONFIG_FILE_NAME.c_str());
+		}
+
+		if (success) {
+			std::string trueString = "1";
+			std::string* value;
+			if (resolutionConfig.TryGetValue("fpsLimit", &value))
+			{
+				DivaImGui::MainModule::fpsLimitSet = std::stoi(*value);
+			}
+			if (resolutionConfig.TryGetValue("MLAA", &value))
+			{
+				if (*value == trueString)
+					morphologicalAA = true;
+			}
+			if (resolutionConfig.TryGetValue("TAA", &value))
+			{
+				if (*value == trueString)
+					temporalAA = true;
+			}
+			if (resolutionConfig.TryGetValue("frm", &value))
+			{
+				if (*value == trueString)
+					frameratemanager = true;
+
+				if (*value == "2")
+					frameratemanagerdbg = true;
+			}
+			if (resolutionConfig.TryGetValue("motifrm", &value))
+			{
+				frametime = std::stoi(*value);
+			}
+			if (resolutionConfig.TryGetValue("toonShaderWorkaround", &value))
+			{
+				if (*value == trueString)
+					toonShader = true;
+			}
+			if (resolutionConfig.TryGetValue("ReShadeState", &value))
+			{
+				ReShadeState = std::stoi(*value);
+			}
+			if (resolutionConfig.TryGetValue("NoCardWorkaround", &value))
+			{
+				if (*value == trueString)
+					NoCardWorkaround = true;
+			}
+			if (resolutionConfig.TryGetValue("forceToonShader", &value))
+			{
+				if (*value == trueString)
+					forcetoonShader = true;
+			}
+			if (resolutionConfig.TryGetValue("forceDisbleToonShaderOutline", &value))
+			{
+				if (*value == trueString)
+					forceDisableToonShaderOutline = true;
+			}
+			if (resolutionConfig.TryGetValue("forcevsyncfpslimit", &value))
+			{
+				if (*value == trueString)
+					force_fpslimit_vsync = true;
+			}
+			if (resolutionConfig.TryGetValue("fbWidth", &value))
+			{
+				*(int*)FB_RESOLUTION_WIDTH_ADDRESS = std::stoi(*value);
+			}
+			if (resolutionConfig.TryGetValue("fbHeight", &value))
+			{
+				*(int*)FB_RESOLUTION_HEIGHT_ADDRESS = std::stoi(*value);
+			}
+			if (resolutionConfig.TryGetValue("depthCopy", &value))
+			{
+				if (*value == trueString)
+					copydepth = true;
+			}
+			if (resolutionConfig.TryGetValue("disableDof", &value))
+			{
+				if (*value == trueString)
+					*(int*)0x00000001411AB650 = 1;
+			}
+			if (resolutionConfig.TryGetValue("showFps", &value))
+			{
+				if (*value == trueString)
+					showFps = true;
+			}
+			if (resolutionConfig.TryGetValue("scaling", &value))
+			{
+				if (*value == trueString)
+					scaling = true;
+			}
+			if (resolutionConfig.TryGetValue("dbg", &value))
+			{
+				if (*value == trueString)
+					lybdbg = true;
+			}
+			if (resolutionConfig.TryGetValue("dxgi", &value))
+			{
+				if (*value == trueString)
+					dxgi = true;
+			}
+			if (resolutionConfig.TryGetValue("Vsync", &value))
+			{
+				if (*value == trueString)
+					vsync = true;
+				else
+				{
+					vsync = false;
+					lastvsync = true;
+					fpsLimitBak = DivaImGui::MainModule::fpsLimitSet;
+				}
+			}
+			if (resolutionConfig.TryGetValue("glswapinterval", &value))
+			{
+				swapinterval = std::stoi(*value);
+			}
+			if (resolutionConfig.TryGetValue("SWAPCHAIN_FORMAT", &value))
+			{
+				GraphicsClass::SWAPCHAIN_FORMAT = std::stoi(*value);
+			}
+			if (resolutionConfig.TryGetValue("DISPLAY_FORMAT", &value))
+			{
+				GraphicsClass::DISPLAY_FORMAT = std::stoi(*value);
+			}
+			if (resolutionConfig.TryGetValue("DXGI_FULLSCREEN", &value))
+			{
+				if (*value == trueString)
+					GraphicsClass::FULL_SCREEN = true;
+				else GraphicsClass::FULL_SCREEN = false;
+			}
+			if (resolutionConfig.TryGetValue("customRes", &value))
+			{
+				if (*value == trueString)
+				{
+					int maxWidth = 2560;
+					int maxHeight = 1440;
+					printf("\n");
+					if (resolutionConfig.TryGetValue("maxWidth", &value))
+					{
+						maxWidth = std::stoi(*value);
+						printf(value->c_str());
+					}
+					printf("x");
+					if (resolutionConfig.TryGetValue("maxHeight", &value))
+					{
+						maxHeight = std::stoi(*value);
+						printf(value->c_str());
+					}
+					{
+						DWORD oldProtect, bck;
+						VirtualProtect((BYTE*)0x00000001409B8B68, 4, PAGE_EXECUTE_READWRITE, &oldProtect);
+						*((int*)0x00000001409B8B68) = maxWidth;
+						VirtualProtect((BYTE*)0x00000001409B8B68, 6, oldProtect, &bck);
+					}
+					{
+						DWORD oldProtect, bck;
+						VirtualProtect((BYTE*)0x00000001409B8B6C, 4, PAGE_EXECUTE_READWRITE, &oldProtect);
+						*((int*)0x00000001409B8B6C) = maxHeight;
+						VirtualProtect((BYTE*)0x00000001409B8B6C, 6, oldProtect, &bck);
+					}
+				}
+			}
+		}
 	}
 }

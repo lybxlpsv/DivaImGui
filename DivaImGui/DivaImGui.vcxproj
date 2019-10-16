@@ -182,6 +182,10 @@
     <ClInclude Include="..\Depedencies\snappy\snappy.h" />
     <ClInclude Include="Constants.h" />
     <ClInclude Include="Constants101.h" />
+    <ClInclude Include="DX11\d3dclass.h" />
+    <ClInclude Include="DX11\graphicsclass.h" />
+    <ClInclude Include="DX11\inputclass.h" />
+    <ClInclude Include="DX11\systemclass.h" />
     <ClInclude Include="FileSystem\ConfigFile.h" />
     <ClInclude Include="FileSystem\TextFile.h" />
     <ClInclude Include="GLComponent.h" />
@@ -218,6 +222,10 @@
     <ClCompile Include="..\Depedencies\snappy\snappy.cc" />
     <ClCompile Include="DivaImGui.cpp" />
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="DX11\d3dclass.cpp" />
+    <ClCompile Include="DX11\graphicsclass.cpp" />
+    <ClCompile Include="DX11\inputclass.cpp" />
+    <ClCompile Include="DX11\systemclass.cpp" />
     <ClCompile Include="FileSystem\ConfigFile.cpp" />
     <ClCompile Include="FileSystem\TextFile.cpp" />
     <ClCompile Include="GLComponent.cpp" />

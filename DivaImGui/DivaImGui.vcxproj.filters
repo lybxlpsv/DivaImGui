@@ -105,6 +105,18 @@
     <ClInclude Include="GLHook\GLHookConstants.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DX11\d3dclass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DX11\graphicsclass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DX11\inputclass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DX11\systemclass.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -198,6 +210,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\Depedencies\snappy\snappy-stubs-internal.cc">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DX11\d3dclass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DX11\graphicsclass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DX11\inputclass.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DX11\systemclass.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
