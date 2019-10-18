@@ -37,6 +37,7 @@ public:
 	static bool VSYNC_ENABLED;
 	static int SWAPCHAIN_FORMAT;
 	static int DISPLAY_FORMAT;
+	static int DISPLAY_FORMAT2;
 	static HDC currentHdc;
 	static bool reinit;
 private:

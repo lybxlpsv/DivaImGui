@@ -72,8 +72,8 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>D:\Microsoft DirectX SDK (June 2010)\Include;$(SolutionDir)Depedencies;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)Libraries;D:\Microsoft DirectX SDK (June 2010)\Lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(DXSDK_DIR)Include;$(SolutionDir)Depedencies;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)Libraries;$(DXSDK_DIR)Lib\x64;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
@@ -87,8 +87,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>D:\Microsoft DirectX SDK (June 2010)\Include;$(SolutionDir)Depedencies;$(IncludePath)</IncludePath>
-    <LibraryPath>$(SolutionDir)Libraries;D:\Microsoft DirectX SDK (June 2010)\Lib\x64;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(DXSDK_DIR)Include;$(SolutionDir)Depedencies;$(IncludePath)</IncludePath>
+    <LibraryPath>$(SolutionDir)Libraries;$(DXSDK_DIR)Lib\x86;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -190,6 +190,7 @@
     <ClInclude Include="FileSystem\TextFile.h" />
     <ClInclude Include="GLComponent.h" />
     <ClInclude Include="GLComponent101.h" />
+    <ClInclude Include="GLComponentDummy.h" />
     <ClInclude Include="GLComponentLight.h" />
     <ClInclude Include="GLHook\GLHook.h" />
     <ClInclude Include="GLHook\GLHookConstants.h" />
@@ -230,6 +231,7 @@
     <ClCompile Include="FileSystem\TextFile.cpp" />
     <ClCompile Include="GLComponent.cpp" />
     <ClCompile Include="GLComponent101.cpp" />
+    <ClCompile Include="GLComponentDummy.cpp" />
     <ClCompile Include="GLComponentLight.cpp" />
     <ClCompile Include="GLHook\GLHook.cpp" />
     <ClCompile Include="Keyboard\Keyboard.cpp" />

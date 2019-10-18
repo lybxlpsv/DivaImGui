@@ -28,6 +28,7 @@
 #include "Keyboard/Keyboard.h"
 #include "detours/detours.h"
 #include "tchar.h"
+#include <experimental/filesystem>
 
 namespace DivaImGui
 {
@@ -206,6 +207,10 @@ namespace DivaImGui
 	static double wait = 0.02;
 	static bool NoCardWorkaround = false;
 
+	static GLenum lasttarget = 0;
+	static GLuint lastprogram = 0;
+	static bool CatchAETRenderPass = false;
+
 	enum GameState : uint32_t
 	{
 		GS_STARTUP,
@@ -287,6 +292,7 @@ namespace DivaImGui
 	{
 
 	}
+
 	static bool dbgframerateinitialized = false;
 	static bool forcedbgframerateon = false;
 	void InjectCode(void* address, const std::vector<uint8_t> data)
@@ -356,6 +362,61 @@ namespace DivaImGui
 
 		return false;
 	}
+
+	void __stdcall hwglBindProgramARB(GLenum target, GLuint program)
+	{
+		//printf("[DivaImGui] Shader CatchARB!\n");
+		lasttarget = target;
+		lastprogram = program;
+		if (target == GL_VERTEX_PROGRAM_ARB)
+			if (program == 7683)
+			{
+				CatchAETRenderPass = true;
+			}
+
+		return fnGLBindProgramARB(target, program);
+	}
+
+	GLenum __stdcall hwglGetError()
+	{
+		if (CatchAETRenderPass)
+		{
+			//printf("CatchAETRenderPass %p\n", _ReturnAddress());
+			CatchAETRenderPass = false;
+			if (ReShadeState == 0)
+				if (*fnReshadeRender != nullptr)
+					fnReshadeRender();
+				else {
+					void* ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.dva"), "ReshadeRender");
+					if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"opengl32.dll"), "ReshadeRender");
+					printf("[DivaImGui] ReshadeRender=%p\n", ptr);
+					if (ptr != nullptr)
+					{
+						fnReshadeRender = (ReshadeRender)ptr;
+						fnReshadeRender();
+					}
+				}
+		}
+		return FNGlGetError();
+	}
+
+	void InitHooks()
+	{
+		fnGLBindProgramARB = (GLBindProgramARB)wglGetProcAddress("glBindProgramARB");
+		printf("[DivaImGui] Hooking glBindProgramARB=%p\n", fnGLBindProgramARB);
+		DetourTransactionBegin();
+		DetourUpdateThread(GetCurrentThread());
+		DetourAttach(&(PVOID&)fnGLBindProgramARB, (PVOID)hwglBindProgramARB);
+		DetourTransactionCommit();
+
+		FNGlGetError = *glGetError;
+		printf("[DivaImGui] Hooking glGetError=%p\n", FNGlGetError);
+		DetourTransactionBegin();
+		DetourUpdateThread(GetCurrentThread());
+		DetourAttach(&(PVOID&)FNGlGetError, (PVOID)hwglGetError);
+		DetourTransactionCommit();
+	}
+
 
 	void RefreshShaders(HDC hdc = NULL)
 	{
@@ -608,6 +669,7 @@ namespace DivaImGui
 
 	void InitializeImGui()
 	{
+		InitHooks();
 		//if (WGLExtensionSupported("WGL_EXT_swap_control"))
 		{
 			// Extension is supported, init pointers.
@@ -1041,6 +1103,7 @@ namespace DivaImGui
 			if (MainModule::DivaWindowHandle == NULL)
 				return;
 			glewInit();
+
 			InitializeImGui();
 		}
 
@@ -1572,7 +1635,6 @@ namespace DivaImGui
 
 	BOOL __stdcall hwglSwapBuffers(_In_ HDC hDc)
 	{
-		
 		if (dxgi)
 		{
 			GraphicsClass::currentHdc = hDc;
@@ -1584,7 +1646,7 @@ namespace DivaImGui
 
 				if (ActualDivaWindowHandle == NULL)
 					ActualDivaWindowHandle = FindWindow(0, MainModule::freeGlutDefaultName);
-				;
+				
 				changeHandlePD = (PDChangeHandle)GetProcAddress(GetModuleHandle(L"TLAC.dva"), "ChangeDivaWindowHandle");
 
 				RECT desktop;
@@ -1605,22 +1667,21 @@ namespace DivaImGui
 
 		}
 
-		if (shaderafthookd)
-			if (ReShadeState == 1)
-				if (*fnReshadeRender != nullptr)
+		if (ReShadeState == 1)
+			if (*fnReshadeRender != nullptr)
+				fnReshadeRender();
+			else {
+				void* ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.dva"), "ReshadeRender");
+				if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"opengl32.dll"), "ReshadeRender");
+				if (ptr != nullptr)
+				{
+					fnReshadeRender = (ReshadeRender)ptr;
 					fnReshadeRender();
-				else {
-					void* ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.dva"), "ReshadeRender");
-					if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"opengl32.dll"), "ReshadeRender");
-					//printf("[DivaImGui] ReshadeRender=%p\n", ptr);
-					if (ptr != nullptr)
-					{
-						fnReshadeRender = (ReshadeRender)ptr;
-						fnReshadeRender();
-					}
 				}
+			}
+
 		RenderGUI();
-		if (!dxgi_init)
+		if (!dxgi)
 			bool result = fnGLSwapBuffers(hDc);
 		GLHook::GLCtrl::Update(hDc);
 		return true;
@@ -1636,47 +1697,6 @@ namespace DivaImGui
 	{
 		//printf("[DivaImGui] Shader CatchARB!\n");
 		return fnGLShaderSourceARB(shaderObj, count, string, length);
-	}
-
-	static GLenum lasttarget = 0;
-	static GLuint lastprogram = 0;
-	static bool CatchAETRenderPass = false;
-
-	void __stdcall hwglBindProgramARB(GLenum target, GLuint program)
-	{
-		//printf("[DivaImGui] Shader CatchARB!\n");
-		lasttarget = target;
-		lastprogram = program;
-		if (target == GL_VERTEX_PROGRAM_ARB)
-			if (program == 7683)
-			{
-				CatchAETRenderPass = true;
-			}
-
-		return fnGLBindProgramARB(target, program);
-	}
-
-	GLenum __stdcall hwglGetError()
-	{
-		if (CatchAETRenderPass)
-		{
-			//printf("CatchAETRenderPass %p\n", _ReturnAddress());
-			CatchAETRenderPass = false;
-			if (ReShadeState == 0)
-				if (*fnReshadeRender != nullptr)
-					fnReshadeRender();
-				else {
-					void* ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.dva"), "ReshadeRender");
-					if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"opengl32.dll"), "ReshadeRender");
-					//printf("[DivaImGui] ReshadeRender=%p\n", ptr);
-					if (ptr != nullptr)
-					{
-						fnReshadeRender = (ReshadeRender)ptr;
-						fnReshadeRender();
-					}
-				}
-		}
-		return FNGlGetError();
 	}
 
 	void __stdcall hwglProgramStringARB(GLenum target, GLenum format, GLsizei len, const void* pointer)
@@ -1886,19 +1906,7 @@ namespace DivaImGui
 			}
 			*/
 
-			fnGLBindProgramARB = (GLBindProgramARB)wglGetProcAddress("glBindProgramARB");
-			printf("[DivaImGui] Hooking glBindProgramARB=%p\n", fnGLBindProgramARB);
-			DetourTransactionBegin();
-			DetourUpdateThread(GetCurrentThread());
-			DetourAttach(&(PVOID&)fnGLBindProgramARB, (PVOID)hwglBindProgramARB);
-			DetourTransactionCommit();
 
-			FNGlGetError = *glGetError;
-			printf("[DivaImGui] Hooking glGetError=%p\n", FNGlGetError);
-			DetourTransactionBegin();
-			DetourUpdateThread(GetCurrentThread());
-			DetourAttach(&(PVOID&)FNGlGetError, (PVOID)hwglGetError);
-			DetourTransactionCommit();
 
 			/*
 			{
@@ -1941,7 +1949,6 @@ namespace DivaImGui
 
 	static HINSTANCE hGetProcIDDLL;
 
-
 	void GLComponent::Initialize()
 	{
 		TCHAR dllName[MAX_PATH + 1];
@@ -1979,10 +1986,11 @@ namespace DivaImGui
 		GLHook::GLCtrl::fnuglswapbuffer = (void*)*fnGLSwapBuffers;
 		GLHook::GLCtrl::Update(NULL);
 
-		void* ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.dva"), "ReshadeRender");
-		if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"opengl32.dll"), "ReshadeRender");
-		//printf("[DivaImGui] ReshadeRender=%p\n", ptr);
-		if (ptr != nullptr)
+		//void* ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.dva"), "ReshadeRender");
+		//if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"opengl32.dll"), "ReshadeRender");
+
+		//if (ptr != nullptr)
+		/*
 		{
 			wGlGetProcAddress = (WGlGetProcAddress)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglGetProcAddress");
 			printf("[DivaImGui] wGlGetProcAddress=%p\n", wGlGetProcAddress);
@@ -1991,7 +1999,7 @@ namespace DivaImGui
 			DetourAttach(&(PVOID&)wGlGetProcAddress, (PVOID)hWGlGetProcAddress);
 			DetourTransactionCommit();
 		}
-
+		*/
 		DivaImGui::FileSystem::ConfigFile resolutionConfig(MainModule::GetModuleDirectory(), RESOLUTION_CONFIG_FILE_NAME.c_str());
 		bool success = resolutionConfig.OpenRead();
 		if (!success)
@@ -2090,11 +2098,6 @@ namespace DivaImGui
 				if (*value == trueString)
 					lybdbg = true;
 			}
-			if (resolutionConfig.TryGetValue("dxgi", &value))
-			{
-				if (*value == trueString)
-					dxgi = true;
-			}
 			if (resolutionConfig.TryGetValue("Vsync", &value))
 			{
 				if (*value == trueString)
@@ -2110,11 +2113,20 @@ namespace DivaImGui
 			{
 				swapinterval = std::stoi(*value);
 			}
+			if (resolutionConfig.TryGetValue("dxgi", &value))
+			{
+				if (*value == trueString)
+					dxgi = true;
+			}
 			if (resolutionConfig.TryGetValue("SWAPCHAIN_FORMAT", &value))
 			{
 				GraphicsClass::SWAPCHAIN_FORMAT = std::stoi(*value);
 			}
 			if (resolutionConfig.TryGetValue("DISPLAY_FORMAT", &value))
+			{
+				GraphicsClass::DISPLAY_FORMAT = std::stoi(*value);
+			}
+			if (resolutionConfig.TryGetValue("DISPLAY_FORMAT2", &value))
 			{
 				GraphicsClass::DISPLAY_FORMAT = std::stoi(*value);
 			}

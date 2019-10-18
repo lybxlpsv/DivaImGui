@@ -108,7 +108,7 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	}
 
 	// Now fill the display mode list structures.
-	result = adapterOutput->GetDisplayModeList((DXGI_FORMAT)GraphicsClass::DISPLAY_FORMAT, DXGI_ENUM_MODES_INTERLACED, &numModes, displayModeList);
+	result = adapterOutput->GetDisplayModeList((DXGI_FORMAT)GraphicsClass::DISPLAY_FORMAT2, DXGI_ENUM_MODES_INTERLACED, &numModes, displayModeList);
 	if (FAILED(result))
 	{
 		return false;
@@ -219,7 +219,7 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	swapChainDesc.Flags = 0;
 
 	// Set the feature level to DirectX 11.
-	featureLevel = D3D_FEATURE_LEVEL_9_1;
+	featureLevel = D3D_FEATURE_LEVEL_9_3;
 
 	// Create the swap chain, Direct3D device, and Direct3D device context.
 	result = D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, 0, &featureLevel, 1,
@@ -359,17 +359,17 @@ bool D3DClass::Initialize(int screenWidth, int screenHeight, bool vsync, HWND hw
 	m_deviceContext->RSSetViewports(1, &viewport);
 
 	// Setup the projection matrix.
-	fieldOfView = (float)D3DX_PI / 4.0f;
+	fieldOfView = (float)3.1415926535897932384626 / 4.0f;
 	screenAspect = (float)screenWidth / (float)screenHeight;
 
 	// Create the projection matrix for 3D rendering.
-	D3DXMatrixPerspectiveFovLH(&m_projectionMatrix, fieldOfView, screenAspect, screenNear, screenDepth);
+	//D3DXMatrixPerspectiveFovLH(&m_projectionMatrix, fieldOfView, screenAspect, screenNear, screenDepth);
 
 	// Initialize the world matrix to the identity matrix.
-	D3DXMatrixIdentity(&m_worldMatrix);
+	//D3DXMatrixIdentity(&m_worldMatrix);
 
 	// Create an orthographic projection matrix for 2D rendering.
-	D3DXMatrixOrthoLH(&m_orthoMatrix, (float)screenWidth, (float)screenHeight, screenNear, screenDepth);
+	//D3DXMatrixOrthoLH(&m_orthoMatrix, (float)screenWidth, (float)screenHeight, screenNear, screenDepth);
 
 	gl_handleD3D = wglDXOpenDeviceNV(m_device);
 
@@ -455,15 +455,14 @@ void D3DClass::BeginScene(float red, float green, float blue, float alpha)
 {
 	HGLRC oldContext = wglGetCurrentContext();
 
-	BOOL isFullscreen;
-	m_swapChain->GetFullscreenState(&isFullscreen, NULL);
-	if (!isFullscreen)
+	if (GraphicsClass::reinit)
 	{
-		if (GraphicsClass::reinit)
+		BOOL isFullscreen;
+		m_swapChain->GetFullscreenState(&isFullscreen, NULL);
+		if (!isFullscreen)
 		{
 			is_init = false;
-			GraphicsClass::reinit = false;
-
+			
 			printf("[DivaImGui] Reinitializing contexts...\n");
 			gl_handleD3D = wglDXOpenDeviceNV(m_device);
 			m_swapChain->SetFullscreenState(true, NULL);
@@ -472,11 +471,11 @@ void D3DClass::BeginScene(float red, float green, float blue, float alpha)
 			glDeleteFramebuffers(1, &fbo);
 			glDeleteRenderbuffers(1, gl_names);
 			wglMakeCurrent(GraphicsClass::currentHdc, oldContext);
-			
+
 			Sleep(300);
 		}
+		
 	}
-
 	float color[4];
 	HDC hdc = GraphicsClass::currentHdc;
 	// Setup the color to clear the buffer to.
@@ -528,21 +527,21 @@ void D3DClass::BeginScene(float red, float green, float blue, float alpha)
 	*/
 
 	wglDXLockObjectsNV(gl_handleD3D, 1, gl_handles);
-	
-	glBindFramebufferEXT(GL_READ_FRAMEBUFFER, 0);
-	glBindFramebufferEXT(GL_DRAW_FRAMEBUFFER, fbo);
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, fbo);
 
 	if (GraphicsClass::FULL_SCREEN)
 	{
-		glBlitFramebufferEXT(0, 0, screenwidth, screenheight, 0, screenheight, screenwidth, 0,
-			GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		glBlitFramebuffer(0, 0, screenwidth, screenheight, 0, screenheight, screenwidth, 0,
+			GL_COLOR_BUFFER_BIT, GL_LINEAR);
 	}
 	else
 	{
 		RECT hWindow;
 		GetClientRect(cur_hwnd, &hWindow);
-		glBlitFramebufferEXT(0, 0, hWindow.right, hWindow.bottom, 0, screenheight, screenwidth, 0,
-			GL_COLOR_BUFFER_BIT, GL_NEAREST);
+		glBlitFramebuffer(0, 0, hWindow.right, hWindow.bottom, 0, screenheight, screenwidth, 0,
+			GL_COLOR_BUFFER_BIT, GL_LINEAR);
 	}
 
 	wglDXUnlockObjectsNV(gl_handleD3D, 1, gl_handles);
@@ -585,27 +584,6 @@ ID3D11Device* D3DClass::GetDevice()
 ID3D11DeviceContext* D3DClass::GetDeviceContext()
 {
 	return m_deviceContext;
-}
-
-
-void D3DClass::GetProjectionMatrix(D3DXMATRIX& projectionMatrix)
-{
-	projectionMatrix = m_projectionMatrix;
-	return;
-}
-
-
-void D3DClass::GetWorldMatrix(D3DXMATRIX& worldMatrix)
-{
-	worldMatrix = m_worldMatrix;
-	return;
-}
-
-
-void D3DClass::GetOrthoMatrix(D3DXMATRIX& orthoMatrix)
-{
-	orthoMatrix = m_orthoMatrix;
-	return;
 }
 
 

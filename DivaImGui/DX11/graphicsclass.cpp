@@ -5,6 +5,7 @@
 
 int GraphicsClass::DISPLAY_FORMAT = 28;
 int GraphicsClass::SWAPCHAIN_FORMAT = 28;
+int GraphicsClass::DISPLAY_FORMAT2 = 28;
 bool GraphicsClass::FULL_SCREEN = true;
 bool GraphicsClass::VSYNC_ENABLED = false;
 HDC GraphicsClass::currentHdc = NULL;
@@ -82,7 +83,7 @@ bool GraphicsClass::Render()
 {
 	// Clear the buffers to begin the scene.
 	m_D3D->BeginScene(0.5f, 0.5f, 0.5f, 1.0f);
-
+	
 
 	// Present the rendered scene to the screen.
 	m_D3D->EndScene();

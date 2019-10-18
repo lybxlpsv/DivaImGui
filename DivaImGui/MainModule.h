@@ -4,6 +4,7 @@
 #include "GLComponent.h"
 #include "GLComponent101.h"
 #include "GLComponentLight.h"
+#include "GLComponentDummy.h"
 
 namespace DivaImGui
 {
@@ -28,6 +29,7 @@ namespace DivaImGui
 		static DivaImGui::GLComponent glcomp;
 		static DivaImGui::V101::GLComponent101 glcomp101;
 		static DivaImGui::VLight::GLComponentLight glcomplight;
+		static DivaImGui::Vdummy::GLComponentDummy glcompdummy;
 
 		static bool showUi;
 		static std::string GetModuleDirectory();

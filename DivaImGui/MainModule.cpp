@@ -3,6 +3,7 @@
 #include "GLComponent.h"
 #include "GLComponent101.h"
 #include "GLComponentLight.h"
+#include "GLComponentDummy.h"
 #include "FileSystem/ConfigFile.h"
 #include "GLHook/GLHook.h"
 
@@ -26,6 +27,7 @@ namespace DivaImGui
 	DivaImGui::GLComponent MainModule::glcomp;
 	DivaImGui::V101::GLComponent101 MainModule::glcomp101;
 	DivaImGui::VLight::GLComponentLight MainModule::glcomplight;
+	DivaImGui::Vdummy::GLComponentDummy MainModule::glcompdummy;
 	bool MainModule::showUi = false;
 
 	void MainModule::initializeglcomp()
@@ -130,6 +132,10 @@ namespace DivaImGui
 					*((BYTE*)0x0000000140626C29 + 0) = 0x48;
 					*((BYTE*)0x0000000140626C29 + 1) = 0xE9;
 					VirtualProtect((BYTE*)0x0000000140626C29, 2, oldProtect, &bck);
+					glcomp.Initialize();
+					break;
+
+				case 999:
 					glcomp.Initialize();
 					break;
 #endif
