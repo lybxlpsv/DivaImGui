@@ -389,7 +389,7 @@ namespace DivaImGui
 				else {
 					void* ptr = GetProcAddress(GetModuleHandle(L"DivaImGuiReShade.dva"), "ReshadeRender");
 					if (ptr == nullptr) ptr = GetProcAddress(GetModuleHandle(L"opengl32.dll"), "ReshadeRender");
-					printf("[DivaImGui] ReshadeRender=%p\n", ptr);
+					//printf("[DivaImGui] ReshadeRender=%p\n", ptr);
 					if (ptr != nullptr)
 					{
 						fnReshadeRender = (ReshadeRender)ptr;
