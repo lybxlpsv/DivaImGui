@@ -281,7 +281,13 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT umessage, WPARAM wparam, LPARAM lparam)
 			return 0;
 		}
 
-		case WM_LBUTTONDOWN:
+		case WM_KILLFOCUS:
+		{
+			GraphicsClass::reinit = false;
+			return 0;
+		}
+
+		case WM_SETFOCUS:
 		{
 			GraphicsClass::reinit = true;
 			return 0;
