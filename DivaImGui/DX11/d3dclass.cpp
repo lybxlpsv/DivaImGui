@@ -462,10 +462,11 @@ void D3DClass::BeginScene(float red, float green, float blue, float alpha)
 		if (!isFullscreen)
 		{
 			is_init = false;
-			
+
 			printf("[DivaImGui] Reinitializing contexts...\n");
 			gl_handleD3D = wglDXOpenDeviceNV(m_device);
-			m_swapChain->SetFullscreenState(true, NULL);
+			if (GetActiveWindow() == cur_hwnd)
+				m_swapChain->SetFullscreenState(true, NULL);
 			wglMakeCurrent(GraphicsClass::currentHdc, thisContext);
 			wglDXUnregisterObjectNV(gl_handleD3D, gl_handles[0]);
 			glDeleteFramebuffers(1, &fbo);
@@ -474,7 +475,8 @@ void D3DClass::BeginScene(float red, float green, float blue, float alpha)
 
 			Sleep(300);
 		}
-		
+		if (GetActiveWindow() != cur_hwnd)
+			GraphicsClass::reinit = false;
 	}
 	float color[4];
 	HDC hdc = GraphicsClass::currentHdc;
