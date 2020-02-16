@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 
+#include "Utilities/HookHelper.h"
+
 #include <intrin.h>
 
 #pragma intrinsic(_ReturnAddress)
@@ -29,10 +31,17 @@
 #include "detours/detours.h"
 #include "tchar.h"
 #include <experimental/filesystem>
+#include <cmath>
+#include "PV_Param/PVParam701.h";
+#include "DebugHook/DebugHook701.h";
 
 namespace DivaImGui
 {
 	using namespace std::chrono;
+	using namespace DivaImGui;
+	using namespace PVParam;
+	using namespace DebugHooks;
+
 	using dsec = duration<double>;
 
 	typedef chrono::time_point<chrono::steady_clock> steady_clock;
@@ -52,9 +61,6 @@ namespace DivaImGui
 	typedef void(__stdcall* GLBindTexture)(GLenum, GLuint);
 	typedef GLenum(__stdcall* GLGetError)();
 	typedef PROC(__stdcall* WGlGetProcAddress)(LPCSTR);
-	typedef int(__stdcall* PDGetFramerate)(void);
-	typedef void(__stdcall* PDChangeHandle)(HWND);
-	typedef void(__stdcall* PDSetFramerate)(int);
 	typedef void(__stdcall* DNInitialize)(int);
 	typedef int(__stdcall* DNRefreshShaders)(void);
 	typedef int(__stdcall* DNProcessShader)(int, int, int, int, int);
@@ -62,12 +68,12 @@ namespace DivaImGui
 	typedef bool(__stdcall* WGLDXUnlockObjectsNV)(HANDLE, GLint, HANDLE*);
 	typedef bool(__stdcall* WGLDXlockObjectsNV)(HANDLE, GLint, HANDLE*);
 	__int64(__fastcall* divaEngineUpdate)(__int64 a1) = (__int64(__fastcall*)(__int64 a1))0x140194CD0;
+	typedef __int64(__fastcall* sub1401EBBA0)(unsigned int* a1, unsigned int* a2, unsigned int a3, char a4, char a5);
+	typedef char(__fastcall* sub1404280A0)(__int64 a1, __int64* a2, __int64 a3, __int64 a4);
+	static VOID(WINAPI* OSleep)(DWORD dwMilliseconds) = Sleep;
 	//typedef std::chrono::nanoseconds*(__stdcall* PDGetFrameratePtr)(void);
 	// Function pointer
 	GLSwapBuffers fnGLSwapBuffers;
-	PDGetFramerate getFrameratePD;
-	PDSetFramerate setFrameratePD;
-	PDChangeHandle changeHandlePD;
 	GLShaderSource fnGLShaderSource;
 	GLShaderSourceARB fnGLShaderSourceARB;
 	GLProgramStringARB fnGLProgramStringARB;
@@ -81,7 +87,17 @@ namespace DivaImGui
 	ReshadeRender fnReshadeRender;
 	WGLDXUnlockObjectsNV fnWGLDXUnlockObjectsNV;
 	WGLDXlockObjectsNV fnWGLDXlockObjectsNV;
+	sub1401EBBA0 f1401EBBA0;
+	sub1404280A0 f1404280A0;
 	//PDGetFrameratePtr getFrameratePtrPD;
+
+
+	typedef int(__stdcall* PDGetFramerate)(void);
+	typedef void(__stdcall* PDChangeHandle)(HWND);
+	typedef void(__stdcall* PDSetFramerate)(int);
+	PDGetFramerate getFrameratePD;
+	PDSetFramerate setFrameratePD;
+	PDChangeHandle changeHandlePD;
 
 	bool usePDFrameLimit = false;
 	//std::chrono::nanoseconds* PDFrameLimit;
@@ -134,6 +150,8 @@ namespace DivaImGui
 
 	static bool vsync = true;
 	static bool lastvsync = false;
+
+	static int prjxmdata = 0;
 
 	static bool copymodules = false;
 
@@ -268,6 +286,8 @@ namespace DivaImGui
 		SUB_MAX,
 	};
 
+	
+
 	static bool dxgi = false;
 	static bool dxgi_init = false;
 
@@ -363,6 +383,63 @@ namespace DivaImGui
 		return false;
 	}
 
+	char __fastcall sub_1404280A0(__int64 a1, __int64* a2, __int64 a3, __int64 a4)
+	{
+		auto output = f1404280A0(a1, a2, a3, a4);
+		printf("%d\n", a2[2]);
+		return output;
+	}
+
+	//float mikupos_a1[99];
+	float* mikupos_a1[9999];
+	float* mikupos_a2[9999];
+	static int mikuposptrcounter = 0;
+	static int curmikupos = 0;
+	static bool mikuposshowreturnaddr = false;
+	static bool mikuoverride = false;
+	static bool mikushowall = false;
+
+	int mikupos_a3[9999];
+	int mikupos_a4[9999];
+	int mikupos_a5[9999];
+
+	__int64 __fastcall sub_1401EBBA0(unsigned int* a1, unsigned int* a2, unsigned int a3, char a4, char a5)
+	{
+		if (!debugUi)
+		{
+			return f1401EBBA0(a1, a2, a3, a4, a5);
+		}
+
+		if (mikuposshowreturnaddr)
+			printf("sub_1401EBBA0 %p\n", _ReturnAddress());
+
+		if (mikuposptrcounter == -1)
+			mikuposptrcounter = 0;
+
+		__int64 output;
+
+		if (mikuoverride)
+			output = f1401EBBA0(a1, a2, mikupos_a3[mikuposptrcounter], mikupos_a4[mikuposptrcounter], mikupos_a5[mikuposptrcounter]);
+		else
+		{
+			output = f1401EBBA0(a1, a2, a3, a4, a5);
+
+			mikupos_a1[mikuposptrcounter] = (float*)a1;
+			mikupos_a2[mikuposptrcounter] = (float*)a2;
+			mikupos_a3[mikuposptrcounter] = a3;
+			mikupos_a4[mikuposptrcounter] = a4;
+			mikupos_a5[mikuposptrcounter] = a5;
+		}
+
+		mikuposptrcounter++;
+		if (mikuposptrcounter == 9999)
+			mikuposptrcounter = 0;
+
+		return output;
+	}
+
+	static bool _dbg_mmm_stuff1 = false;
+
 	void __stdcall hwglBindProgramARB(GLenum target, GLuint program)
 	{
 		//printf("[DivaImGui] Shader CatchARB!\n");
@@ -373,6 +450,20 @@ namespace DivaImGui
 			{
 				CatchAETRenderPass = true;
 			}
+
+		if (target == GL_VERTEX_PROGRAM_ARB)
+			if (program == 7308)
+			{
+				if (lybdbg)
+					printf("!!!!RESPONSIBLE! %p\n", _ReturnAddress());
+				_dbg_mmm_stuff1 = true;
+			}
+			else if (target == GL_FRAGMENT_PROGRAM_ARB)
+				if (program == 7434)
+				{
+					//program = 7437;
+				}
+				else _dbg_mmm_stuff1 = false;
 
 		return fnGLBindProgramARB(target, program);
 	}
@@ -416,7 +507,6 @@ namespace DivaImGui
 		DetourAttach(&(PVOID&)FNGlGetError, (PVOID)hwglGetError);
 		DetourTransactionCommit();
 	}
-
 
 	void RefreshShaders(HDC hdc = NULL)
 	{
@@ -641,9 +731,8 @@ namespace DivaImGui
 			*((int*)0x0000000140EDA8E8) = *(int*)0x0000000140EDA8C0;
 
 			*(float*)0x00000001411A1900 = 0;
-			*(float*)0x00000001411A1904 = (float) * (int*)0x0000000140EDA8BC;
-			*(float*)0x00000001411A1908 = (float) * (int*)0x0000000140EDA8C0;
-
+			*(float*)0x00000001411A1904 = (float)*(int*)0x0000000140EDA8BC;
+			*(float*)0x00000001411A1908 = (float)*(int*)0x0000000140EDA8C0;
 
 			hlastX = curX;
 			hlastY = curY;
@@ -666,10 +755,10 @@ namespace DivaImGui
 		// Initialize and run the system object.
 	}
 
-
 	void InitializeImGui()
 	{
 		InitHooks();
+
 		//if (WGLExtensionSupported("WGL_EXT_swap_control"))
 		{
 			// Extension is supported, init pointers.
@@ -722,6 +811,10 @@ namespace DivaImGui
 		}
 
 		std::ifstream f("plugins\\res_scale.csv");
+
+		if (!f.good())
+			std::ifstream f("res_scale.csv");
+
 		if (f.good())
 		{
 			aria::csv::CsvParser parser(f);
@@ -791,8 +884,7 @@ namespace DivaImGui
 			VirtualProtect((BYTE*)0x000000014050214F, 2, PAGE_EXECUTE_READWRITE, &oldProtect);
 			*((BYTE*)0x000000014050214F + 0) = 0x74;
 			*((BYTE*)0x000000014050214F + 1) = 0x18;
-			VirtualProtect((BYTE*)0x000000014050214F, 2, oldProtect, &bck);
-
+			VirtualProtect((BYTE*)0x000000014050214F, 2, oldProtect, &bck); \
 		}
 
 		{
@@ -816,6 +908,12 @@ namespace DivaImGui
 	void Update()
 	{
 		int* pvid = (int*)0x00000001418054C4;
+
+		if (LTParamLoaded)
+			SetCurrentLTParam();
+
+		if (FGParamLoaded)
+			SetCurrentFogParam();
 
 		if (NoCardWorkaround)
 		{
@@ -929,6 +1027,9 @@ namespace DivaImGui
 
 			if (*pvid != last_pvid)
 			{
+				LoadCurrentLTPParam();
+				LoadCurrentFogParam();
+
 				if (res_scale[*pvid] != -1.0f) {
 					if ((*pvid > 0) && (*pvid < 999))
 					{
@@ -943,9 +1044,7 @@ namespace DivaImGui
 
 				last_pvid = *pvid;
 			}
-
 		}
-
 
 		if (temporalAA)
 		{
@@ -1387,7 +1486,11 @@ namespace DivaImGui
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
 			io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 			ImGui::Begin("Debug Ui", &debugUi, window_flags);
-			if (ImGui::CollapsingHeader("SHADERS"))
+			if (ImGui::CollapsingHeader("PV"))
+			{
+				ImGui::InputInt("Current PVID", (int*)0x00000001418054C4);
+			}
+			if (ImGui::CollapsingHeader("Shaders"))
 			{
 				ImGui::Checkbox("dbgshowrect", &dbgtexshow);
 				if (dbgtexshow)
@@ -1395,6 +1498,263 @@ namespace DivaImGui
 
 				ImGui::InputInt("Allocated Shader Count", &allocatedshadercount);
 
+			}
+			if (ImGui::CollapsingHeader("LTParam"))
+			{
+				if (ImGui::CollapsingHeader("Current"))
+				{
+					for (int i = 0; i < 8; i++)
+					{
+						ImGui::Text("LP = %d", i);
+						{
+							ImGui::InputInt("Light Param Pos", &LTData_Current[i]);
+							ImGui::InputInt("Light Param Next", &LTData_Next[i]);
+						}
+					}
+				}
+				if (LTParamLoaded)
+					if (ImGui::CollapsingHeader("LPData"))
+					{
+						ImGui::InputInt("Position ", &LTData_Dbg_pos);
+
+						ImGui::InputInt("Type", &LPdata.data[LTData_Dbg_pos].type);
+						ImGui::InputFloat("Time", &LPdata.data[LTData_Dbg_pos].time);
+						ImGui::InputInt("Interp", &LPdata.data[LTData_Dbg_pos].interp);
+
+						ImGui::Text("--- Ambient ---");
+						{
+							ImGui::DragFloat("Ambient Red", &LPdata.data[LTData_Dbg_pos].data.Ambient.Red, 0.001);
+							ImGui::DragFloat("Ambient Green", &LPdata.data[LTData_Dbg_pos].data.Ambient.Green, 0.001);
+							ImGui::DragFloat("Ambient Blue", &LPdata.data[LTData_Dbg_pos].data.Ambient.Blue, 0.001);
+							ImGui::DragFloat("Ambient Alpha", &LPdata.data[LTData_Dbg_pos].data.Ambient.Alpha, 0.001);
+						}
+						ImGui::Text("--- Diffuse ---");
+						{
+							ImGui::DragFloat("Diffuse Red", &LPdata.data[LTData_Dbg_pos].data.Diffuse.Red, 0.001);
+							ImGui::DragFloat("Diffuse Green", &LPdata.data[LTData_Dbg_pos].data.Diffuse.Green, 0.001);
+							ImGui::DragFloat("Diffuse Blue", &LPdata.data[LTData_Dbg_pos].data.Diffuse.Blue, 0.001);
+							ImGui::DragFloat("Diffuse Alpha", &LPdata.data[LTData_Dbg_pos].data.Diffuse.Alpha, 0.001);
+						}
+						ImGui::Text("--- Specular ---");
+						{
+							ImGui::DragFloat("Specular Red", &LPdata.data[LTData_Dbg_pos].data.Specular.Red, 0.001);
+							ImGui::DragFloat("Specular Green", &LPdata.data[LTData_Dbg_pos].data.Specular.Green, 0.001);
+							ImGui::DragFloat("Specular Blue", &LPdata.data[LTData_Dbg_pos].data.Specular.Blue, 0.001);
+							ImGui::DragFloat("Specular Alpha", &LPdata.data[LTData_Dbg_pos].data.Specular.Alpha, 0.001);
+						}
+						ImGui::Text("--- Spot ---");
+						{
+							ImGui::DragFloat("Spot 1", &LPdata.data[LTData_Dbg_pos].data.Spot.X, 0.01);
+							ImGui::DragFloat("Spot 2", &LPdata.data[LTData_Dbg_pos].data.Spot.Y, 0.01);
+							ImGui::DragFloat("Spot 3", &LPdata.data[LTData_Dbg_pos].data.Spot.Z, 0.01);
+							ImGui::DragFloat("Spot 4", &LPdata.data[LTData_Dbg_pos].data.Spot.W, 0.01);
+						}
+						ImGui::Text("--- Spot2 ---");
+						{
+							ImGui::DragFloat("Spot2 1", &LPdata.data[LTData_Dbg_pos].data.Spot2.X, 0.5);
+							ImGui::DragFloat("Spot2 2", &LPdata.data[LTData_Dbg_pos].data.Spot2.Y, 0.5);
+							ImGui::DragFloat("Spot2 3", &LPdata.data[LTData_Dbg_pos].data.Spot2.Z, 0.5);
+							ImGui::DragFloat("Spot2 4", &LPdata.data[LTData_Dbg_pos].data.Spot2.W, 0.5);
+						}
+					}
+			}
+			if (ImGui::CollapsingHeader("Fog"))
+			{
+				ImGui::Text("Use Debug UI to Set Fog");
+
+				ImGui::Checkbox("Interpolate (LERP)", &SaveInterpolate);
+
+				if (ImGui::Button("Save")) {
+					for (int i = 0; i < 3; i++)
+					{
+						SaveCurrentFogParam(i, SaveInterpolate);
+					}
+				};
+				ImGui::SameLine();
+				if (ImGui::Button("Save Depth Only")) {
+					SaveCurrentFogParam(0, SaveInterpolate);
+				};
+
+				ImGui::Text("Save at Time=0");
+				if (ImGui::Button("Save (0)")) {
+					for (int i = 0; i < 3; i++)
+					{
+						SaveCurrentFogParam(i, SaveInterpolate, 0);
+					}
+				};
+				ImGui::SameLine();
+				if (ImGui::Button("Save Depth Only (0)")) {
+					SaveCurrentFogParam(0, SaveInterpolate, 0);
+				};
+			}
+			if (ImGui::CollapsingHeader("Color"))
+			{
+				ImGui::InputInt("Light Param", &LTParam_Pos);
+
+				switch (LTParam_Pos)
+				{
+				case 0:
+					ImGui::Text("Chara");
+					break;
+				case 1:
+					ImGui::Text("Stage");
+					break;
+				case 2:
+					ImGui::Text("Sun");
+					break;
+				case 3:
+					ImGui::Text("Reflect");
+					break;
+				case 4:
+					ImGui::Text("Shadow");
+					break;
+				case 5:
+					ImGui::Text("Chara_Color");
+					break;
+				case 6:
+					ImGui::Text("Chara_F");
+					break;
+				case 7:
+					ImGui::Text("Projection");
+					break;
+				default:
+					LTParam_Pos = 0;
+					break;
+				}
+
+				ImGui::InputInt("Type", &LTParam->LP[LTParam_Pos].type);
+				ImGui::Text("--- Ambient ---");
+				{
+					ImGui::DragFloat("Ambient Red", &LTParam->LP[LTParam_Pos].Ambient.Red, 0.001);
+					ImGui::DragFloat("Ambient Green", &LTParam->LP[LTParam_Pos].Ambient.Green, 0.001);
+					ImGui::DragFloat("Ambient Blue", &LTParam->LP[LTParam_Pos].Ambient.Blue, 0.001);
+					ImGui::DragFloat("Ambient Alpha", &LTParam->LP[LTParam_Pos].Ambient.Alpha, 0.001);
+				}
+				ImGui::Text("--- Diffuse ---");
+				{
+					ImGui::DragFloat("Diffuse Red", &LTParam->LP[LTParam_Pos].Diffuse.Red, 0.001);
+					ImGui::DragFloat("Diffuse Green", &LTParam->LP[LTParam_Pos].Diffuse.Green, 0.001);
+					ImGui::DragFloat("Diffuse Blue", &LTParam->LP[LTParam_Pos].Diffuse.Blue, 0.001);
+					ImGui::DragFloat("Diffuse Alpha", &LTParam->LP[LTParam_Pos].Diffuse.Alpha, 0.001);
+				}
+				ImGui::Text("--- Specular ---");
+				{
+					ImGui::DragFloat("Specular Red", &LTParam->LP[LTParam_Pos].Specular.Red, 0.001);
+					ImGui::DragFloat("Specular Green", &LTParam->LP[LTParam_Pos].Specular.Green, 0.001);
+					ImGui::DragFloat("Specular Blue", &LTParam->LP[LTParam_Pos].Specular.Blue, 0.001);
+					ImGui::DragFloat("Specular Alpha", &LTParam->LP[LTParam_Pos].Specular.Alpha, 0.001);
+				}
+				ImGui::Text("--- Light Position ---");
+				{
+					ImGui::DragFloat("Position 1", &LTParam->LP[LTParam_Pos].Position.X, 0.01);
+					ImGui::DragFloat("Position 2", &LTParam->LP[LTParam_Pos].Position.Y, 0.01);
+					ImGui::DragFloat("Position 3", &LTParam->LP[LTParam_Pos].Position.Z, 0.01);
+					ImGui::DragFloat("Position 4", &LTParam->LP[LTParam_Pos].Position.W, 0.01);
+				}
+
+				ImGui::Text("--- Spot ---");
+				{
+					ImGui::DragFloat("Spot 1", &LTParam->LP[LTParam_Pos].Spot.X, 0.01);
+					ImGui::DragFloat("Spot 2", &LTParam->LP[LTParam_Pos].Spot.Y, 0.01);
+					ImGui::DragFloat("Spot 3", &LTParam->LP[LTParam_Pos].Spot.Z, 0.01);
+					ImGui::DragFloat("Spot 4", &LTParam->LP[LTParam_Pos].Spot.W, 0.01);
+				}
+				ImGui::Text("--- Spot2 ---");
+				{
+					ImGui::DragFloat("Spot2 1", &LTParam->LP[LTParam_Pos].Spot2.X, 0.5);
+					ImGui::DragFloat("Spot2 2", &LTParam->LP[LTParam_Pos].Spot2.Y, 0.5);
+					ImGui::DragFloat("Spot2 3", &LTParam->LP[LTParam_Pos].Spot2.Z, 0.5);
+					ImGui::DragFloat("Spot2 4", &LTParam->LP[LTParam_Pos].Spot2.W, 0.5);
+				}
+
+				ImGui::Checkbox("Interpolate (LERP)", &SaveInterpolate);
+
+				if (ImGui::Button("Save All")) {
+					for (int i = 0; i < 8; i++)
+					{
+						SaveCurrentLTParam(i, SaveInterpolate);
+					}
+				};
+				ImGui::SameLine();
+				if (ImGui::Button("Save Stage & Chara")) {
+					SaveCurrentLTParam(0, SaveInterpolate);
+					SaveCurrentLTParam(1, SaveInterpolate);
+				};
+
+				ImGui::Text("Save at Time=0");
+				if (ImGui::Button("Save All (0)")) {
+					for (int i = 0; i < 8; i++)
+					{
+						SaveCurrentLTParam(i, SaveInterpolate, 0);
+					}
+				};
+				ImGui::SameLine();
+				if (ImGui::Button("Save Stage & Chara (0)")) {
+					SaveCurrentLTParam(0, SaveInterpolate, 0);
+					SaveCurrentLTParam(1, SaveInterpolate, 0);
+				};
+
+				if (ImGui::CollapsingHeader("More Save Options"))
+				{
+					for (int i = 0; i < 8; i++)
+					{
+						if (ImGui::Button(std::to_string(i).c_str())) {
+							SaveCurrentLTParam(i, SaveInterpolate);
+						};
+					}
+				}
+			}
+			if (ImGui::CollapsingHeader("Motion"))
+			{
+				ImGui::InputInt("Total Bones", &mikuposptrcounter);
+				ImGui::InputInt("Current Bone", &curmikupos);
+				ImGui::Checkbox("Show ReturnAddr", &mikuposshowreturnaddr);
+				ImGui::Checkbox("Override Params", &mikuoverride);
+				ImGui::Checkbox("Show all params", &mikushowall);
+
+				if (mikuposptrcounter >= 0) {
+					ImGui::InputInt("a3", &mikupos_a3[curmikupos]); ImGui::SameLine();
+					ImGui::InputInt("a4", &mikupos_a4[curmikupos]); ImGui::SameLine();
+					ImGui::InputInt("a5", &mikupos_a5[curmikupos]);
+				}
+
+				if (mikuposptrcounter >= 0)
+					if (curmikupos > mikuposptrcounter)
+						curmikupos == 0;
+
+				if (mikuposptrcounter >= 0)
+				{
+					if (!mikushowall)
+					{
+						for (int i = 15; i <= 23; i++)
+						{
+							auto mikupos = mikupos_a1[curmikupos];
+							ImGui::DragFloat(std::to_string(i).c_str(), &mikupos[i], 0.01f);
+						}
+
+						for (int i = 15; i <= 23; i++)
+						{
+							auto mikupos = mikupos_a2[curmikupos];
+							ImGui::DragFloat(std::to_string(i).c_str(), &mikupos[i], 0.01f);
+						}
+					}
+					else {
+						if (ImGui::CollapsingHeader("a0")) {
+							for (int i = 0; i <= 23; i++)
+							{
+								auto mikupos = mikupos_a1[curmikupos];
+								ImGui::DragFloat(std::to_string(i).c_str(), &mikupos[i], 0.01f);
+							}
+						}
+						if (ImGui::CollapsingHeader("a-0")) {
+							for (int i = 0; i <= 23; i++)
+							{
+								auto mikupos = mikupos_a2[curmikupos];
+								ImGui::DragFloat(std::to_string(i).c_str(), &mikupos[i], 0.01f);
+							}
+						}
+					}
+				}
 			}
 			if (ImGui::CollapsingHeader("DATA TEST"))
 			{
@@ -1546,6 +1906,8 @@ namespace DivaImGui
 		ImGui::Render();
 		ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
 
+		mikuposptrcounter = -1;
+
 		if (frameratemanager)
 			setFramerate();
 
@@ -1646,7 +2008,7 @@ namespace DivaImGui
 
 				if (ActualDivaWindowHandle == NULL)
 					ActualDivaWindowHandle = FindWindow(0, MainModule::freeGlutDefaultName);
-				
+
 				changeHandlePD = (PDChangeHandle)GetProcAddress(GetModuleHandle(L"TLAC.dva"), "ChangeDivaWindowHandle");
 
 				RECT desktop;
@@ -1661,10 +2023,7 @@ namespace DivaImGui
 					changeHandlePD(System->m_hwnd);
 					dxgi_init = true;
 				}
-
 			}
-
-
 		}
 
 		if (ReShadeState == 1)
@@ -1814,7 +2173,7 @@ namespace DivaImGui
 	BOOL __stdcall hwglDXUnlockObjectsNV(HANDLE hDevice, GLint count, HANDLE* hObjects)
 	{
 		catchtexid = true;
-		//printf("hwglDXUnlockObjectsNV %p\n", _ReturnAddress());
+		printf("hwglDXUnlockObjectsNV %p\n", _ReturnAddress());
 		return fnWGLDXUnlockObjectsNV(hDevice, count, hObjects);
 	}
 
@@ -1822,6 +2181,13 @@ namespace DivaImGui
 	{
 		catchtexid = false;
 		return fnWGLDXlockObjectsNV(hDevice, count, hObjects);
+	}
+
+	void __stdcall FSleep(DWORD miliseconds)
+	{
+		printf("Sleep %p %d\n", _ReturnAddress(), miliseconds);
+		OSleep(miliseconds);
+		return;
 	}
 
 	static GLuint movietex[100];
@@ -1905,38 +2271,6 @@ namespace DivaImGui
 				DetourTransactionCommit();
 			}
 			*/
-
-
-
-			/*
-			{
-				fnWGLDXUnlockObjectsNV = (WGLDXUnlockObjectsNV)wglGetProcAddress("wglDXUnlockObjectsNV");
-				printf("[DivaImGui] wglDXUnlockObjectsNV=%p\n", fnWGLDXUnlockObjectsNV);
-				DetourTransactionBegin();
-				DetourUpdateThread(GetCurrentThread());
-				DetourAttach(&(PVOID&)fnWGLDXUnlockObjectsNV, (PVOID)hwglDXUnlockObjectsNV);
-				DetourTransactionCommit();
-			}
-
-			{
-				fnGLBindTexture = *glBindTexture;
-				printf("[DivaImGui] fnGLBindTexture=%p\n", glBindTexture);
-				DetourTransactionBegin();
-				DetourUpdateThread(GetCurrentThread());
-				DetourAttach(&(PVOID&)fnGLBindTexture, (PVOID)hwglBindTexture);
-				DetourTransactionCommit();
-			}
-
-			{
-				fnWGLDXlockObjectsNV = (WGLDXlockObjectsNV)wglGetProcAddress("wglDXLockObjectsNV");
-				printf("[DivaImGui] wglDXLockObjectsNV=%p\n", fnWGLDXlockObjectsNV);
-				DetourTransactionBegin();
-				DetourUpdateThread(GetCurrentThread());
-				DetourAttach(&(PVOID&)fnWGLDXlockObjectsNV, (PVOID)hWGLDXlockObjectsNV);
-				DetourTransactionCommit();
-			}
-			*/
-			//glewInit();
 		}
 		/*
 		if (L == "glShaderSource")
@@ -1972,9 +2306,16 @@ namespace DivaImGui
 			fnDNProcessShader = (DNProcessShader)GetProcAddress(HMODULE(hGetProcIDDLL), "ProcessShader");
 			fnDNRefreshShaders = (DNRefreshShaders)GetProcAddress(HMODULE(hGetProcIDDLL), "RefreshShaders");
 		}
-		*/
+		*/;
 
 		//fnDNInitialize();
+
+		//INSTALL_HOOK(sub_1405E52D0);
+		//INSTALL_HOOK(sub_1405E5240);
+		//INSTALL_HOOK(sub_1405E4B50);
+		//INSTALL_HOOK(sub_1404444B0);
+		//INSTALL_HOOK(sub_1404425B0);
+		//INSTALL_HOOK(sub_140437820);
 
 		fnGLSwapBuffers = (GLSwapBuffers)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglSwapBuffers");
 		printf("[DivaImGui] glSwapBuffers=%p\n", fnGLSwapBuffers);
@@ -1982,6 +2323,7 @@ namespace DivaImGui
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach(&(PVOID&)fnGLSwapBuffers, (PVOID)hwglSwapBuffers);
 		DetourTransactionCommit();
+
 
 		GLHook::GLCtrl::fnuglswapbuffer = (void*)*fnGLSwapBuffers;
 		GLHook::GLCtrl::Update(NULL);
@@ -2000,6 +2342,7 @@ namespace DivaImGui
 			DetourTransactionCommit();
 		}
 		*/
+
 		DivaImGui::FileSystem::ConfigFile resolutionConfig(MainModule::GetModuleDirectory(), RESOLUTION_CONFIG_FILE_NAME.c_str());
 		bool success = resolutionConfig.OpenRead();
 		if (!success)
@@ -2168,6 +2511,58 @@ namespace DivaImGui
 					}
 				}
 			}
+		}
+
+		if (lybdbg)
+		{
+			/*
+			{
+				fnWGLDXUnlockObjectsNV = (WGLDXUnlockObjectsNV)wglGetProcAddress("wglDXUnlockObjectsNV");
+				printf("[DivaImGui] wglDXUnlockObjectsNV=%p\n", fnWGLDXUnlockObjectsNV);
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourAttach(&(PVOID&)fnWGLDXUnlockObjectsNV, (PVOID)hwglDXUnlockObjectsNV);
+				DetourTransactionCommit();
+			}
+
+			{
+				fnGLBindTexture = *glBindTexture;
+				printf("[DivaImGui] fnGLBindTexture=%p\n", glBindTexture);
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourAttach(&(PVOID&)fnGLBindTexture, (PVOID)hwglBindTexture);
+				DetourTransactionCommit();
+			}
+
+			{
+				fnWGLDXlockObjectsNV = (WGLDXlockObjectsNV)wglGetProcAddress("wglDXLockObjectsNV");
+				printf("[DivaImGui] wglDXLockObjectsNV=%p\n", fnWGLDXlockObjectsNV);
+				DetourTransactionBegin();
+				DetourUpdateThread(GetCurrentThread());
+				DetourAttach(&(PVOID&)fnWGLDXlockObjectsNV, (PVOID)hWGLDXlockObjectsNV);
+				DetourTransactionCommit();
+			}
+			*/
+
+			/*f1401EBBA0 = (sub1401EBBA0)(0x1401EBBA0);
+			printf("[DivaImGui] Detouring 0x1401EBBA0 %p\n", f1401EBBA0);
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourAttach(&(PVOID&)f1401EBBA0, (PVOID)sub_1401EBBA0);
+			DetourTransactionCommit();
+
+			f1404280A0 = (sub1404280A0)(0x1404280A0);
+			printf("[DivaImGui] Detouring 0x1404280A0 %p\n", f1404280A0);
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourAttach(&(PVOID&)f1404280A0, (PVOID)sub_1404280A0);
+			DetourTransactionCommit();*/
+
+			/*printf("[DivaImGui] Detouring Sleep %p\n", OSleep);
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourAttach(&(PVOID&)OSleep, (PVOID)FSleep);
+			DetourTransactionCommit();*/
 		}
 	}
 }
