@@ -475,7 +475,7 @@ void D3DClass::BeginScene(float red, float green, float blue, float alpha)
 
 			Sleep(300);
 		}
-		if (GetActiveWindow() != cur_hwnd)
+		if (GetForegroundWindow() != cur_hwnd)
 			GraphicsClass::reinit = false;
 	}
 	float color[4];

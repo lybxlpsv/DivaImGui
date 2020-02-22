@@ -34,6 +34,7 @@
 #include <cmath>
 #include "PV_Param/PVParam701.h";
 #include "DebugHook/DebugHook701.h";
+#include "MinHook.h"
 
 namespace DivaImGui
 {
@@ -145,6 +146,7 @@ namespace DivaImGui
 	static bool temporalAA = 0;
 	static bool temporalAA2 = 0;
 	static bool copydepth = false;
+	static int HookType = 0;
 
 	static bool pdframerate = false;
 
@@ -286,7 +288,7 @@ namespace DivaImGui
 		SUB_MAX,
 	};
 
-	
+
 
 	static bool dxgi = false;
 	static bool dxgi_init = false;
@@ -451,19 +453,19 @@ namespace DivaImGui
 				CatchAETRenderPass = true;
 			}
 
-		if (target == GL_VERTEX_PROGRAM_ARB)
-			if (program == 7308)
-			{
-				if (lybdbg)
-					printf("!!!!RESPONSIBLE! %p\n", _ReturnAddress());
-				_dbg_mmm_stuff1 = true;
-			}
-			else if (target == GL_FRAGMENT_PROGRAM_ARB)
-				if (program == 7434)
-				{
-					//program = 7437;
-				}
-				else _dbg_mmm_stuff1 = false;
+		//if (target == GL_VERTEX_PROGRAM_ARB)
+		//	if (program == 7308)
+		//	{
+		//		if (lybdbg)
+		//			printf("!!!!RESPONSIBLE! %p\n", _ReturnAddress());
+		//		_dbg_mmm_stuff1 = true;
+		//	}
+		//	else if (target == GL_FRAGMENT_PROGRAM_ARB)
+		//		if (program == 7434)
+		//		{
+		//			//program = 7437;
+		//		}
+		//		else _dbg_mmm_stuff1 = false;
 
 		return fnGLBindProgramARB(target, program);
 	}
@@ -1266,9 +1268,9 @@ namespace DivaImGui
 		}
 
 		ImGui::SetNextWindowBgAlpha(uiTransparency);
-
-		ImGui_ImplWin32_NewFrame();
+		
 		ImGui_ImplOpenGL2_NewFrame();
+		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
 
 		ImGuiIO& io = ImGui::GetIO();
@@ -1735,7 +1737,7 @@ namespace DivaImGui
 						for (int i = 15; i <= 23; i++)
 						{
 							auto mikupos = mikupos_a2[curmikupos];
-							ImGui::DragFloat(std::to_string(i).c_str(), &mikupos[i], 0.01f);
+							ImGui::DragFloat(std::to_string(i * -1).c_str(), &mikupos[i], 0.01f);
 						}
 					}
 					else {
@@ -1750,7 +1752,7 @@ namespace DivaImGui
 							for (int i = 0; i <= 23; i++)
 							{
 								auto mikupos = mikupos_a2[curmikupos];
-								ImGui::DragFloat(std::to_string(i).c_str(), &mikupos[i], 0.01f);
+								ImGui::DragFloat(std::to_string(i * -1).c_str(), &mikupos[i], 0.01f);
 							}
 						}
 					}
@@ -2040,10 +2042,20 @@ namespace DivaImGui
 			}
 
 		RenderGUI();
+
+		bool result = false;
+
 		if (!dxgi)
-			bool result = fnGLSwapBuffers(hDc);
+		{
+			if (HookType == 1)
+				result = owglSwapBuffers(hDc);
+			else
+				result = fnGLSwapBuffers(hDc);
+		}
 		GLHook::GLCtrl::Update(hDc);
-		return true;
+		if (dxgi)
+			return true;
+		return result;
 	}
 
 	void __stdcall hwglShaderSource(GLuint shader, GLsizei count, const GLchar** string, const GLint* length)
@@ -2289,15 +2301,6 @@ namespace DivaImGui
 		GetModuleFileName(DivaImGui::MainModule::Module, dllName, MAX_PATH);
 		GetVersionInfo(dllName, major, minor, build, revision);
 
-		/*
-		HMODULE hMod = GetModuleHandle(L"opengl32.dll");
-		void* ptr = GetProcAddress(hMod, "wglSwapBuffers");
-		MH_Initialize();
-		MH_CreateHook(ptr, hwglSwapBuffers, reinterpret_cast<void**>(&owglSwapBuffers));
-		MH_EnableHook(ptr);
-		*/
-
-		/*
 		if (DoesFileExist(L"DivaImGuiDotNet.dll"))
 		{
 			hGetProcIDDLL = LoadLibrary(L"DivaImGuiDotNet.dll");
@@ -2306,7 +2309,7 @@ namespace DivaImGui
 			fnDNProcessShader = (DNProcessShader)GetProcAddress(HMODULE(hGetProcIDDLL), "ProcessShader");
 			fnDNRefreshShaders = (DNRefreshShaders)GetProcAddress(HMODULE(hGetProcIDDLL), "RefreshShaders");
 		}
-		*/;
+
 
 		//fnDNInitialize();
 
@@ -2317,12 +2320,12 @@ namespace DivaImGui
 		//INSTALL_HOOK(sub_1404425B0);
 		//INSTALL_HOOK(sub_140437820);
 
-		fnGLSwapBuffers = (GLSwapBuffers)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglSwapBuffers");
+		/*fnGLSwapBuffers = (GLSwapBuffers)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglSwapBuffers");
 		printf("[DivaImGui] glSwapBuffers=%p\n", fnGLSwapBuffers);
 		DetourTransactionBegin();
 		DetourUpdateThread(GetCurrentThread());
 		DetourAttach(&(PVOID&)fnGLSwapBuffers, (PVOID)hwglSwapBuffers);
-		DetourTransactionCommit();
+		DetourTransactionCommit();*/
 
 
 		GLHook::GLCtrl::fnuglswapbuffer = (void*)*fnGLSwapBuffers;
@@ -2479,6 +2482,11 @@ namespace DivaImGui
 					GraphicsClass::FULL_SCREEN = true;
 				else GraphicsClass::FULL_SCREEN = false;
 			}
+			if (resolutionConfig.TryGetValue("HOOK_TYPE", &value))
+			{
+				if (*value == trueString)
+					HookType = 1;
+			}
 			if (resolutionConfig.TryGetValue("customRes", &value))
 			{
 				if (*value == trueString)
@@ -2513,6 +2521,26 @@ namespace DivaImGui
 			}
 		}
 
+		if (HookType == 1)
+		{
+			printf("[DivaImGui] Using MinHook\n");
+			HMODULE hMod = GetModuleHandle(L"opengl32.dll");
+			void* ptr = GetProcAddress(hMod, "wglSwapBuffers");
+			MH_Initialize();
+			MH_CreateHook(ptr, hwglSwapBuffers, reinterpret_cast<void**>(&owglSwapBuffers));
+			MH_EnableHook(ptr);
+
+		}
+		else {
+			printf("[DivaImGui] Using Detours\n");
+			fnGLSwapBuffers = (GLSwapBuffers)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglSwapBuffers");
+			printf("[DivaImGui] glSwapBuffers=%p\n", fnGLSwapBuffers);
+			DetourTransactionBegin();
+			DetourUpdateThread(GetCurrentThread());
+			DetourAttach(&(PVOID&)fnGLSwapBuffers, (PVOID)hwglSwapBuffers);
+			DetourTransactionCommit();
+		}
+
 		if (lybdbg)
 		{
 			/*
@@ -2544,13 +2572,13 @@ namespace DivaImGui
 			}
 			*/
 
-			/*f1401EBBA0 = (sub1401EBBA0)(0x1401EBBA0);
+			f1401EBBA0 = (sub1401EBBA0)(0x1401EBBA0);
 			printf("[DivaImGui] Detouring 0x1401EBBA0 %p\n", f1401EBBA0);
 			DetourTransactionBegin();
 			DetourUpdateThread(GetCurrentThread());
 			DetourAttach(&(PVOID&)f1401EBBA0, (PVOID)sub_1401EBBA0);
 			DetourTransactionCommit();
-
+			/*
 			f1404280A0 = (sub1404280A0)(0x1404280A0);
 			printf("[DivaImGui] Detouring 0x1404280A0 %p\n", f1404280A0);
 			DetourTransactionBegin();

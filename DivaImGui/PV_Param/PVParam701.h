@@ -56,9 +56,9 @@ namespace PVParam
 			int32_t SaturateLevel;
 			float Gamma_3;
 			float Unk_2;
-			float FlareA;
-			float ShaftA;
-			float GhostA;
+			Light_Param_XYZ Flare;
+			Light_Param_XYZ Shaft;
+			Light_Param_XYZ Ghost;
 			Light_Param_XYZ Radius;
 			Light_Param_XYZ Inten;
 		} PostProcess;
@@ -691,7 +691,7 @@ namespace PVParam
 
 		bool LoadCurrentPPParam()
 		{
-
+			return true;
 		}
 
 		void SaveCurrentPPParam(int type, int interpolate = 0)
