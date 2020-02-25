@@ -131,6 +131,17 @@ namespace PVParam
 			return (i1.time < i2.time);
 		}
 
+		bool FGData_TimeComparer(Fog_Timed i1, Fog_Timed i2)
+		{
+			if (i1.type == -1 && (i2.type != -1))
+				return false;
+
+			if (i1.type != -1 && (i2.type == -1))
+				return true;
+
+			return (i1.time < i2.time);
+		}
+
 		bool LoadCurrentLTPParam()
 		{
 			LTParamLoaded = false;
@@ -639,7 +650,7 @@ namespace PVParam
 					FGParamLoaded = true;
 					csv.close();
 					int n = sizeof(LPdata.data) / sizeof(LPdata.data[0]);
-					sort(LPdata.data, LPdata.data + n, LPData_TimeComparer);
+					sort(FGdata.data, FGdata.data + n, FGData_TimeComparer);
 					return true;
 				}
 				else return false;

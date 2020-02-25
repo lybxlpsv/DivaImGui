@@ -18,7 +18,7 @@
 #include "FileSystem/ConfigFile.h"
 #include "Keyboard/Keyboard.h"
 #include "GLHook/GLHook.h"
-#include "detours/detours.h"
+#include "MinHook.h"
 #include "DX11\systemclass.h"
 #include "DX11\graphicsclass.h"
 
@@ -425,7 +425,7 @@ namespace DivaImGui::Vdummy
 			}
 		}
 		if (!dxgi)
-			fnGLSwapBuffers(hDc);
+			owglSwapBuffers(hDc);
 		return TRUE;
 	}
 
@@ -513,9 +513,10 @@ namespace DivaImGui::Vdummy
 
 		fnGLSwapBuffers = (GLSwapBuffers)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglSwapBuffers");
 		printf("[DivaImGui] glSwapBuffers=%p\n", fnGLSwapBuffers);
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)fnGLSwapBuffers, (PVOID)hwglSwapBuffers);
-		DetourTransactionCommit();
+		HMODULE hMod = GetModuleHandle(L"opengl32.dll");
+		void* ptr = GetProcAddress(hMod, "wglSwapBuffers");
+		MH_Initialize();
+		MH_CreateHook(ptr, hwglSwapBuffers, reinterpret_cast<void**>(&owglSwapBuffers));
+		MH_EnableHook(ptr);
 	}
 }

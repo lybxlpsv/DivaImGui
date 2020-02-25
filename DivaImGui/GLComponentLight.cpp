@@ -17,7 +17,7 @@
 #include "FileSystem/ConfigFile.h"
 #include "Keyboard/Keyboard.h"
 #include "GLHook/GLHook.h"
-#include "detours/detours.h"
+#include "MinHook.h"
 
 namespace DivaImGui::VLight
 {
@@ -134,72 +134,6 @@ namespace DivaImGui::VLight
 		}
 
 		fprintf(stdout, "Status: Using GLEW %s\n", glewGetString(GLEW_VERSION));
-
-		DivaImGui::FileSystem::ConfigFile resolutionConfig(MainModule::GetModuleDirectory(), RESOLUTION_CONFIG_FILE_NAME.c_str());
-		bool success = resolutionConfig.OpenRead();
-		if (!success)
-		{
-			printf("GLComponent: Unable to parse %s\n", RESOLUTION_CONFIG_FILE_NAME.c_str());
-		}
-
-		if (success) {
-			std::string trueString = "1";
-			std::string* value;
-			if (resolutionConfig.TryGetValue("fpsLimit", &value))
-			{
-				DivaImGui::MainModule::fpsLimitSet = std::stoi(*value);
-			}
-			if (resolutionConfig.TryGetValue("shadernamed", &value))
-			{
-				if (*value == trueString)
-					GLHook::GLCtrl::shaderaftmodified = true;
-			}
-			if (resolutionConfig.TryGetValue("forcevsyncfpslimit", &value))
-			{
-				if (*value == trueString)
-					force_fpslimit_vsync = true;
-			}
-			if (resolutionConfig.TryGetValue("depthCopy", &value))
-			{
-				if (*value == trueString)
-					copydepth = true;
-			}
-			if (resolutionConfig.TryGetValue("showFps", &value))
-			{
-				if (*value == trueString)
-					showFps = true;
-			}
-			if (resolutionConfig.TryGetValue("scaling", &value))
-			{
-				if (*value == trueString)
-					scaling = true;
-			}
-			if (resolutionConfig.TryGetValue("dbg", &value))
-			{
-				if (*value == trueString)
-					lybdbg = true;
-			}
-			if (resolutionConfig.TryGetValue("disableGui", &value))
-			{
-				if (*value == "1")
-					guirender = false;
-			}
-			if (resolutionConfig.TryGetValue("Vsync", &value))
-			{
-				if (*value == trueString)
-					vsync = true;
-				else
-				{
-					vsync = false;
-					lastvsync = true;
-					fpsLimitBak = DivaImGui::MainModule::fpsLimitSet;
-				}
-			}
-			if (resolutionConfig.TryGetValue("glswapinterval", &value))
-			{
-				swapinterval = std::stoi(*value);
-			}
-		}
 
 		for (int i = 0; i < 1000; i++)
 		{
@@ -497,19 +431,88 @@ namespace DivaImGui::VLight
 		GLHook::GLCtrl::Update(hDc);
 		if (guirender)
 			RenderGui(hDc);
-		bool result = fnGLSwapBuffers(hDc);
+		bool result = owglSwapBuffers(hDc);
 		return result;
 	}
 
 	void GLComponentLight::Initialize()
 	{
 		//glewInit();
+
+		DivaImGui::FileSystem::ConfigFile resolutionConfig(MainModule::GetModuleDirectory(), RESOLUTION_CONFIG_FILE_NAME.c_str());
+		bool success = resolutionConfig.OpenRead();
+		if (!success)
+		{
+			printf("GLComponent: Unable to parse %s\n", RESOLUTION_CONFIG_FILE_NAME.c_str());
+		}
+
+		if (success) {
+			std::string trueString = "1";
+			std::string* value;
+			if (resolutionConfig.TryGetValue("fpsLimit", &value))
+			{
+				DivaImGui::MainModule::fpsLimitSet = std::stoi(*value);
+			}
+			if (resolutionConfig.TryGetValue("shadernamed", &value))
+			{
+				if (*value == trueString)
+					GLHook::GLCtrl::shaderaftmodified = true;
+			}
+			if (resolutionConfig.TryGetValue("forcevsyncfpslimit", &value))
+			{
+				if (*value == trueString)
+					force_fpslimit_vsync = true;
+			}
+			if (resolutionConfig.TryGetValue("depthCopy", &value))
+			{
+				if (*value == trueString)
+					copydepth = true;
+			}
+			if (resolutionConfig.TryGetValue("showFps", &value))
+			{
+				if (*value == trueString)
+					showFps = true;
+			}
+			if (resolutionConfig.TryGetValue("scaling", &value))
+			{
+				if (*value == trueString)
+					scaling = true;
+			}
+			if (resolutionConfig.TryGetValue("dbg", &value))
+			{
+				if (*value == trueString)
+					lybdbg = true;
+			}
+			if (resolutionConfig.TryGetValue("disableGui", &value))
+			{
+				if (*value == "1")
+					guirender = false;
+			}
+			if (resolutionConfig.TryGetValue("Vsync", &value))
+			{
+				if (*value == trueString)
+					vsync = true;
+				else
+				{
+					vsync = false;
+					lastvsync = true;
+					fpsLimitBak = DivaImGui::MainModule::fpsLimitSet;
+				}
+			}
+			if (resolutionConfig.TryGetValue("glswapinterval", &value))
+			{
+				swapinterval = std::stoi(*value);
+			}
+		}
+
 		fnGLSwapBuffers = (GLSwapBuffers)GetProcAddress(GetModuleHandle(L"opengl32.dll"), "wglSwapBuffers");
 		printf("[DivaImGui] glSwapBuffers=%p\n", fnGLSwapBuffers);
-		DetourTransactionBegin();
-		DetourUpdateThread(GetCurrentThread());
-		DetourAttach(&(PVOID&)fnGLSwapBuffers, (PVOID)hwglSwapBuffers);
-		DetourTransactionCommit();
+		printf("[DivaImGui] Using MinHook\n");
+		HMODULE hMod = GetModuleHandle(L"opengl32.dll");
+		void* ptr = GetProcAddress(hMod, "wglSwapBuffers");
+		MH_Initialize();
+		MH_CreateHook(ptr, hwglSwapBuffers, reinterpret_cast<void**>(&owglSwapBuffers));
+		MH_EnableHook(ptr);
 		GLHook::GLCtrl::fnuglswapbuffer = (void*)*fnGLSwapBuffers;
 		GLHook::GLCtrl::Update(NULL);
 	}
