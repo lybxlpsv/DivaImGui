@@ -4,11 +4,9 @@ An in-game UI which can be used with [TLAC](https://github.com/samyuu/TotallyLeg
 
 # Download
 
-[Stable Releases](https://github.com/lybxlpsv/DivaImGui/releases)
-
 [Development Build](https://ci.appveyor.com/project/lybxlpsv/divaimgui/build/artifacts) (Use this when using latest development build of PD Loader)
 
-[Guide for AMD/Intel (u)HD users](https://github.com/lybxlpsv/DivaImGui/wiki/AMD-and-Intel-Guide)
+[Guide for Intel (u)HD users](https://github.com/lybxlpsv/DivaImGui/wiki/AMD-and-Intel-Guide)
 
 # Special Thanks
 
