@@ -5,6 +5,7 @@
 #include "GLComponent101.h"
 #include "GLComponentLight.h"
 #include "GLComponentDummy.h"
+#include "GLComponentGCST.h"
 
 namespace DivaImGui
 {
@@ -29,6 +30,7 @@ namespace DivaImGui
 		static DivaImGui::GLComponent glcomp;
 		static DivaImGui::V101::GLComponent101 glcomp101;
 		static DivaImGui::VLight::GLComponentLight glcomplight;
+		static DivaImGui::VGCST::GLComponentLight glcompgcst;
 		static DivaImGui::Vdummy::GLComponentDummy glcompdummy;
 
 		static bool showUi;

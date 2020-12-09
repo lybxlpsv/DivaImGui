@@ -107,7 +107,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;libMinHook-x64-v141-mdd.lib;XINPUT9_1_0.LIB;version.lib;libMinHook-x64-v141-mdd.lib;XINPUT9_1_0.LIB;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;dwmapi.lib;Gdiplus.lib;libMinHook-x64-v141-mdd.lib;XINPUT9_1_0.LIB;version.lib;libMinHook-x64-v141-mdd.lib;XINPUT9_1_0.LIB;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>Xinput.h</IgnoreSpecificDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>
@@ -124,7 +124,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;libMinHook-x86-v141-mdd.lib;XINPUT9_1_0.LIB;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;dwmapi.lib;Gdiplus.lib;libMinHook-x86-v141-mdd.lib;XINPUT9_1_0.LIB;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>Xinput.h</IgnoreSpecificDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>
@@ -141,7 +141,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;libMinHook-x64-v141-mdd.lib;XINPUT9_1_0.LIB;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;dwmapi.lib;Gdiplus.lib;libMinHook-x64-v141-mdd.lib;XINPUT9_1_0.LIB;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>Xinput.h</IgnoreSpecificDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>
@@ -162,7 +162,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>opengl32.lib;libMinHook-x86-v141-mdd.lib;XINPUT9_1_0.LIB;version.lib;XINPUT9_1_0.LIB;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>opengl32.lib;dwmapi.lib;Gdiplus.lib;libMinHook-x86-v141-mdd.lib;XINPUT9_1_0.LIB;version.lib;XINPUT9_1_0.LIB;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>Xinput.h</IgnoreSpecificDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>
@@ -192,6 +192,7 @@
     <ClInclude Include="GLComponent.h" />
     <ClInclude Include="GLComponent101.h" />
     <ClInclude Include="GLComponentDummy.h" />
+    <ClInclude Include="GLComponentGCST.h" />
     <ClInclude Include="GLComponentLight.h" />
     <ClInclude Include="GLHook\GLHook.h" />
     <ClInclude Include="GLHook\GLHookConstants.h" />
@@ -235,6 +236,7 @@
     <ClCompile Include="GLComponent.cpp" />
     <ClCompile Include="GLComponent101.cpp" />
     <ClCompile Include="GLComponentDummy.cpp" />
+    <ClCompile Include="GLComponentGCST.cpp" />
     <ClCompile Include="GLComponentLight.cpp" />
     <ClCompile Include="GLHook\GLHook.cpp" />
     <ClCompile Include="Keyboard\Keyboard.cpp" />

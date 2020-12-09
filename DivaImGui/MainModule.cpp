@@ -27,6 +27,7 @@ namespace DivaImGui
 	DivaImGui::GLComponent MainModule::glcomp;
 	DivaImGui::V101::GLComponent101 MainModule::glcomp101;
 	DivaImGui::VLight::GLComponentLight MainModule::glcomplight;
+	DivaImGui::VGCST::GLComponentLight MainModule::glcompgcst;
 	DivaImGui::Vdummy::GLComponentDummy MainModule::glcompdummy;
 	bool MainModule::showUi = false;
 
@@ -99,6 +100,12 @@ namespace DivaImGui
 			{
 				if (*value == "1")
 					GLHook::GLCtrl::shaderaftmodified = true;
+			}
+
+			if (resolutionConfig.TryGetValue("gc", &value))
+			{
+				glcompgcst.Initialize();
+				return;
 			}
 
 			if (forceLightweight)
